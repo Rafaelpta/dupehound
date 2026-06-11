@@ -11,10 +11,12 @@ pub enum Lang {
     Rust,
     Go,
     Java,
+    C,
+    Cpp,
 }
 
 #[cfg(test)]
-pub const ALL: [Lang; 7] = [
+pub const ALL: [Lang; 9] = [
     Lang::Typescript,
     Lang::Tsx,
     Lang::Javascript,
@@ -22,6 +24,8 @@ pub const ALL: [Lang; 7] = [
     Lang::Rust,
     Lang::Go,
     Lang::Java,
+    Lang::C,
+    Lang::Cpp,
 ];
 
 impl Lang {
@@ -35,6 +39,8 @@ impl Lang {
             "rs" => Some(Lang::Rust),
             "go" => Some(Lang::Go),
             "java" => Some(Lang::Java),
+            "c" | "h" => Some(Lang::C),
+            "cc" | "cpp" | "cxx" | "c++" | "hpp" | "hh" | "hxx" => Some(Lang::Cpp),
             _ => None,
         }
     }
@@ -48,6 +54,8 @@ impl Lang {
             Lang::Rust => "Rust",
             Lang::Go => "Go",
             Lang::Java => "Java",
+            Lang::C => "C",
+            Lang::Cpp => "C++",
         }
     }
 
@@ -60,6 +68,8 @@ impl Lang {
             Lang::Rust => tree_sitter_rust::LANGUAGE.into(),
             Lang::Go => tree_sitter_go::LANGUAGE.into(),
             Lang::Java => tree_sitter_java::LANGUAGE.into(),
+            Lang::C => tree_sitter_c::LANGUAGE.into(),
+            Lang::Cpp => tree_sitter_cpp::LANGUAGE.into(),
         }
     }
 
@@ -71,11 +81,13 @@ impl Lang {
             Lang::Rust => include_str!("queries/rust.scm"),
             Lang::Go => include_str!("queries/go.scm"),
             Lang::Java => include_str!("queries/java.scm"),
+            Lang::C => include_str!("queries/c.scm"),
+            Lang::Cpp => include_str!("queries/cpp.scm"),
         }
     }
 
     pub fn query(self) -> &'static Query {
-        static QUERIES: [OnceLock<Query>; 7] = [const { OnceLock::new() }; 7];
+        static QUERIES: [OnceLock<Query>; 9] = [const { OnceLock::new() }; 9];
         QUERIES[self as usize].get_or_init(|| {
             Query::new(&self.language(), self.query_source())
                 .unwrap_or_else(|e| panic!("bad {} query: {e}", self.name()))
