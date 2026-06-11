@@ -13,6 +13,7 @@ pub enum Lang {
     Java,
 }
 
+#[cfg(test)]
 pub const ALL: [Lang; 7] = [
     Lang::Typescript,
     Lang::Tsx,

@@ -11,7 +11,6 @@ use rustc_hash::{FxHashMap, FxHashSet};
 pub struct Pair {
     pub a: u32,
     pub b: u32,
-    pub similarity: f64,
 }
 
 /// Cull fingerprints shared by more than this many functions: they are
@@ -112,11 +111,7 @@ fn pairs_within(
                     count as f64 / union as f64
                 };
                 if similarity >= threshold {
-                    found.push(Pair {
-                        a: id,
-                        b: other_id,
-                        similarity,
-                    });
+                    found.push(Pair { a: id, b: other_id });
                 }
             }
             found

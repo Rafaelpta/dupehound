@@ -49,14 +49,6 @@ pub struct DiscoveredFile {
     pub is_test: bool,
 }
 
-#[derive(Default)]
-pub struct SkipStats {
-    pub too_large: u32,
-    pub non_utf8: u32,
-    pub generated: u32,
-    pub minified: u32,
-}
-
 /// Walk `root` and return the source files dupehound should look at.
 pub fn discover(root: &Path, config: &Config) -> Result<Vec<DiscoveredFile>> {
     let mut overrides = OverrideBuilder::new(root);

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+<rect width="1200" height="630" fill="#0d1117"/>
+<rect x="1.5" y="1.5" width="1197" height="627" rx="14" fill="none" stroke="#30363d" stroke-width="3"/>
+<text x="60" y="96" font-family="JetBrains Mono" font-weight="bold" font-size="34" fill="#e6edf3">acme-api</text>
+<text x="60" y="142" font-family="JetBrains Mono" font-size="22" fill="#8b949e">2025-01 → 2025-12 · 12 snapshots</text>
+<text x="1140" y="96" font-family="JetBrains Mono" font-weight="800" font-size="64" fill="#f85149" text-anchor="end">36.1%</text>
+<text x="1140" y="138" font-family="JetBrains Mono" font-size="24" fill="#8b949e" text-anchor="end">slop score · grade F</text>
+<linearGradient id="fill" x1="0" y1="0" x2="0" y2="1">
+  <stop offset="0%" stop-color="#f85149" stop-opacity="0.35"/>
+  <stop offset="100%" stop-color="#f85149" stop-opacity="0.02"/>
+</linearGradient>
+<line x1="60" y1="510" x2="1140" y2="510" stroke="#30363d" stroke-width="2"/>
+<path d="M 60.0 510.0 C 76.4 510.0, 125.5 510.0, 158.2 510.0 C 190.9 510.0, 223.6 510.0, 256.4 510.0 C 289.1 510.0, 321.8 510.0, 354.5 510.0 C 387.3 510.0, 420.0 516.2, 452.7 510.0 C 485.5 503.8, 518.2 483.8, 550.9 473.0 C 583.6 462.1, 616.4 456.1, 649.1 444.8 C 681.8 433.5, 714.5 416.1, 747.3 405.2 C 780.0 394.3, 812.7 389.9, 845.5 379.4 C 878.2 368.8, 910.9 351.1, 943.6 342.1 C 976.4 333.1, 1009.1 335.0, 1041.8 325.3 C 1074.5 315.7, 1123.6 290.8, 1140.0 283.9 L 1140.0 510.0 L 60.0 510.0 Z" fill="url(#fill)"/>
+<path d="M 60.0 510.0 C 76.4 510.0, 125.5 510.0, 158.2 510.0 C 190.9 510.0, 223.6 510.0, 256.4 510.0 C 289.1 510.0, 321.8 510.0, 354.5 510.0 C 387.3 510.0, 420.0 516.2, 452.7 510.0 C 485.5 503.8, 518.2 483.8, 550.9 473.0 C 583.6 462.1, 616.4 456.1, 649.1 444.8 C 681.8 433.5, 714.5 416.1, 747.3 405.2 C 780.0 394.3, 812.7 389.9, 845.5 379.4 C 878.2 368.8, 910.9 351.1, 943.6 342.1 C 976.4 333.1, 1009.1 335.0, 1041.8 325.3 C 1074.5 315.7, 1123.6 290.8, 1140.0 283.9" fill="none" stroke="#f85149" stroke-width="4" stroke-linecap="round"/>
+<circle cx="452.7" cy="510.0" r="7" fill="#0d1117" stroke="#f85149" stroke-width="3"/>
+<line x1="452.7" y1="510.0" x2="452.7" y2="242" stroke="#f85149" stroke-width="2" stroke-dasharray="4 5" opacity="0.7"/>
+<text x="60" y="556" font-family="JetBrains Mono" font-weight="bold" font-size="30" fill="#e6edf3">duplication went from ~0 to 36.1% since 2025-05</text>
+
+<text x="60" y="588" font-family="JetBrains Mono" font-size="20" fill="#8b949e">dupehound — sniffs out the code your AI wrote twice · fast · offline · no AI required</text>
+</svg>

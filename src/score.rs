@@ -12,7 +12,6 @@ pub struct Score {
     pub percent: f64,
     pub grade: char,
     pub deletable_lines: u64,
-    pub total_sig_lines: u64,
 }
 
 pub fn slop_score(clusters: &[Cluster], total_sig_lines: u64, tests: TestPolicy) -> Score {
@@ -30,7 +29,6 @@ pub fn slop_score(clusters: &[Cluster], total_sig_lines: u64, tests: TestPolicy)
         percent,
         grade: grade(percent),
         deletable_lines: deletable,
-        total_sig_lines,
     }
 }
 

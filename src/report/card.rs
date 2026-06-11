@@ -122,6 +122,10 @@ pub fn history_card(r: &HistoryReport) -> String {
 
     let headline = match (&r.growth_factor, &r.growth_since) {
         (Some(f), Some(since)) => format!("duplication grew {f:.1}× since {since}"),
+        (None, Some(since)) => format!(
+            "duplication went from ~0 to {:.1}% since {since}",
+            current.slop_percent
+        ),
         _ => "no significant duplication growth".to_string(),
     };
 

@@ -270,9 +270,18 @@ fn inflection(series: &[Point]) -> (Option<f64>, Option<String>) {
         .map(|(i, v)| (i, *v))
         .unwrap();
     if min_val <= 0.05 {
-        // Effectively from zero: report growth only if current is material.
-        if current >= 1.0 && min_idx < series.len() - 1 {
-            return (None, Some(series[min_idx].date.clone()));
+        // Effectively from zero: a ratio is meaningless, so report the end
+        // of the clean era instead (rendered as "went from ~0 to X%").
+        if current >= 1.0 {
+            // Raw series, not smoothed: smoothing bleeds the first dirty
+            // month backwards and would misdate the clean era's end.
+            let last_clean = series
+                .iter()
+                .rposition(|p| p.slop_percent <= 0.05)
+                .unwrap_or(0);
+            if last_clean < series.len() - 1 {
+                return (None, Some(series[last_clean].date.clone()));
+            }
         }
         return (None, None);
     }
@@ -301,10 +310,11 @@ fn render(r: &HistoryReport) -> String {
     let current = r.series.last().unwrap();
     out.push('\n');
     out.push_str(&dim(&format!(
-        "  dupehound history — {} · {} snapshots · {}",
+        "  dupehound history — {} · {} snapshots · {} → {}",
         r.repo,
         r.series.len(),
-        format!("{} → {}", r.series[0].date, current.date),
+        r.series[0].date,
+        current.date,
     )));
     out.push_str("\n\n");
 
@@ -341,14 +351,10 @@ fn render(r: &HistoryReport) -> String {
         "         └{}\n",
         "─".repeat(r.series.len() * 2)
     )));
+    let axis_width = (r.series.len() * 2).saturating_sub(7);
     out.push_str(&dim(&format!(
-        "          {}{}\n",
-        r.series[0].date,
-        format!(
-            "{:>width$}",
-            current.date,
-            width = (r.series.len() * 2).saturating_sub(7)
-        ),
+        "          {}{:>axis_width$}\n",
+        r.series[0].date, current.date,
     )));
     out.push('\n');
 
@@ -357,18 +363,21 @@ fn render(r: &HistoryReport) -> String {
         bold(&format!("{:.1}%", current.slop_percent)),
         grade(current.slop_percent),
     ));
-    match (&r.growth_factor, &r.growth_since) {
-        (Some(factor), Some(since)) => {
-            out.push_str(&format!(
-                "  {} {}\n",
-                bold(&format!("duplication grew {factor:.1}× since {since}")),
-                dim("(vs the smoothed minimum)"),
-            ));
-        }
-        _ => {
-            out.push_str(&dim("  no significant duplication growth detected\n"));
-        }
-    }
+    out.push_str(&match (&r.growth_factor, &r.growth_since) {
+        (Some(factor), Some(since)) => format!(
+            "  {} {}\n",
+            bold(&format!("duplication grew {factor:.1}× since {since}")),
+            dim("(vs the smoothed minimum)"),
+        ),
+        (None, Some(since)) => format!(
+            "  {}\n",
+            bold(&format!(
+                "duplication went from ~0 to {:.1}% since {since}",
+                current.slop_percent
+            )),
+        ),
+        _ => dim("  no significant duplication growth detected\n"),
+    });
     out.push('\n');
     out
 }

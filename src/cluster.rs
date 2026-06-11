@@ -163,7 +163,6 @@ mod tests {
             start_byte: bytes.0,
             end_byte: bytes.1,
             sig_lines: sig,
-            tokens: 100,
             fingerprints: fps,
             is_test: false,
         }
@@ -177,8 +176,8 @@ mod tests {
             unit(2, (1, 10), (0, 100), 9, vec![1, 2, 3]),
         ];
         let pairs = vec![
-            Pair { a: 0, b: 1, similarity: 1.0 },
-            Pair { a: 1, b: 2, similarity: 1.0 },
+            Pair { a: 0, b: 1 },
+            Pair { a: 1, b: 2 },
         ];
         let clusters = build_clusters(&functions, &pairs);
         assert_eq!(clusters.len(), 1);
@@ -199,8 +198,8 @@ mod tests {
             unit(1, (5, 12), (100, 400), 7, vec![2, 3]),
         ];
         let pairs = vec![
-            Pair { a: 0, b: 1, similarity: 1.0 },
-            Pair { a: 2, b: 3, similarity: 1.0 },
+            Pair { a: 0, b: 1 },
+            Pair { a: 2, b: 3 },
         ];
         let clusters = build_clusters(&functions, &pairs);
         assert_eq!(clusters.len(), 1);

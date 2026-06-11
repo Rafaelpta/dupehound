@@ -25,8 +25,6 @@ pub struct FunctionUnit {
     pub end_byte: u32,
     /// Significant lines in the body.
     pub sig_lines: u32,
-    /// Normalized token count of the body.
-    pub tokens: u32,
     /// Sorted, distinct winnowing fingerprints of the body.
     pub fingerprints: Vec<u64>,
     pub is_test: bool,
@@ -138,7 +136,6 @@ pub fn analyze_source(
             start_byte: func.start_byte() as u32,
             end_byte: func.end_byte() as u32,
             sig_lines: normalized.sig_lines,
-            tokens: normalized.codes.len() as u32,
             fingerprints,
             is_test,
         });
