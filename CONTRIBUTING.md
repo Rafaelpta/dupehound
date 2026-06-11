@@ -3,7 +3,7 @@
 ## Getting started
 
 ```sh
-git clone https://github.com/GITHUB_USER/dupehound && cd dupehound
+git clone https://github.com/Rafaelpta/dupehound && cd dupehound
 cargo test        # full suite: unit, golden clone fixtures, CLI integration
 cargo run -- scan .
 ```
