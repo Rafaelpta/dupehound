@@ -1,0 +1,44 @@
+[package]
+name = "dupehound"
+version = "0.1.0"
+edition = "2024"
+description = "Sniffs out near-duplicate code in any codebase. Fast, offline, no AI required."
+license = "MIT"
+repository = "https://github.com/rafaelmcosta/dupehound"
+keywords = ["duplicate", "clone-detection", "code-quality", "cli", "winnowing"]
+categories = ["command-line-utilities", "development-tools"]
+rust-version = "1.85"
+
+[features]
+default = ["card"]
+card = ["dep:resvg"]
+
+[dependencies]
+anyhow = "1.0.102"
+clap = { version = "4.6.1", features = ["derive", "wrap_help"] }
+ignore = "0.4.26"
+owo-colors = { version = "4.3.0", features = ["supports-colors"] }
+rayon = "1.12.0"
+resvg = { version = "0.47.0", optional = true }
+rustc-hash = "2.1.2"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.150"
+streaming-iterator = "0.1.9"
+thiserror = "2.0.18"
+tree-sitter = "0.26.9"
+tree-sitter-go = "0.25.0"
+tree-sitter-java = "0.23.5"
+tree-sitter-javascript = "0.25.0"
+tree-sitter-python = "0.25.0"
+tree-sitter-rust = "0.24.2"
+tree-sitter-typescript = "0.23.2"
+unicode-width = "0.2.2"
+
+[dev-dependencies]
+insta = { version = "1.47.2", features = ["json"] }
+tempfile = "3.27.0"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
