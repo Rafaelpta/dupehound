@@ -151,7 +151,39 @@ function checkCredential(jwt, key) {
 module.exports = { checkCredential };
 "#,
 };
-
+const RUBY: Fixture = Fixture {
+    file_a: "auth.rb",
+    file_b: "session.rb",
+    names: ("validate_token", "check_credential"),
+    src_a: r#"
+def validate_token(token, secret)
+    parts = token.split(".")
+    if parts.length != 3
+        return { valid: false, reason: "malformed" }
+    end
+    payload = JSON.parse(Base64.decode64(parts[1]))
+    if payload["exp"] < Time.now.to_i
+        return { valid: false, reason: "expired" }
+    end
+    signature = sign(parts[0] + "." + parts[1], secret)
+    return { valid: signature == parts[2], reason: "checked" }
+end
+"#,
+    src_b: r#"
+def check_credential(jwt, key)
+    chunks = jwt.split(".")
+    if chunks.length != 3
+        return { valid: false, reason: "bad" }
+    end
+    body = JSON.parse(Base64.decode64(chunks[1]))
+    if body["exp"] < Time.now.to_i
+        return { valid: false, reason: "old" }
+    end
+    sig = sign(chunks[0] + "." + chunks[1], key)
+    return { valid: sig == chunks[2], reason: "done" }
+end
+"#,
+};
 const RUST: Fixture = Fixture {
     file_a: "parser.rs",
     file_b: "lexer.rs",
@@ -268,6 +300,10 @@ fn java_renamed_clone_is_detected() {
 #[test]
 fn javascript_renamed_clone_is_detected() {
     assert_clone_pair_detected(&JAVASCRIPT);
+}
+#[test]
+fn ruby_renamed_clone_is_detected() {
+    assert_clone_pair_detected(&RUBY);
 }
 
 #[test]
