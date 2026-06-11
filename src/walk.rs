@@ -155,11 +155,14 @@ pub fn is_test_path(rel: &str) -> bool {
     if file.ends_with("_test.go")
         || file.ends_with("_test.py")
         || file.ends_with("_test.rs")
+        || file == "tests.rs"
+        || file == "test.rs"
         || file.starts_with("test_")
         || file.contains(".test.")
         || file.contains(".spec.")
         || file.ends_with("test.java")
         || file.ends_with("tests.java")
+        || file.starts_with("conftest.")
     {
         return true;
     }

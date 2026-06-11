@@ -42,6 +42,29 @@ thread_local! {
     static PARSER: RefCell<Parser> = RefCell::new(Parser::new());
 }
 
+/// Byte offset of the first `#[cfg(test)]` attribute whose next item is a
+/// `mod` declaration, if any.
+fn cfg_test_mod_offset(src: &str) -> Option<u32> {
+    let mut from = 0;
+    while let Some(pos) = src[from..].find("#[cfg(test)]") {
+        let at = from + pos;
+        let rest = src[at + "#[cfg(test)]".len()..].trim_start();
+        let rest = rest.strip_prefix("pub ").unwrap_or(rest);
+        if rest.starts_with("mod ") || rest.starts_with("mod\t") {
+            // Only an inline module body (`mod tests { ... }`) hosts test
+            // functions here; `mod tests;` lives in its own file.
+            let inline = rest
+                .find(['{', ';'])
+                .is_some_and(|i| rest.as_bytes()[i] == b'{');
+            if inline {
+                return Some(at as u32);
+            }
+        }
+        from = at + "#[cfg(test)]".len();
+    }
+    None
+}
+
 /// Extract and fingerprint every function in `src`. `file` is the caller's
 /// file id, stamped on each unit. `file_is_test` marks all units as test
 /// code; Rust additionally marks functions inside `#[cfg(test)]` regions.
@@ -59,10 +82,11 @@ pub fn analyze_source(
     })?;
     let root = tree.root_node();
 
-    // Cheap heuristic for Rust unit-test modules: everything at or after the
-    // first `#[cfg(test)]` is almost always the test module at the file tail.
+    // Cheap heuristic for Rust unit-test modules: everything at or after a
+    // `#[cfg(test)]` that introduces a `mod` is the test module at the file
+    // tail. (A bare `#[cfg(test)] use ...` near the top must NOT count.)
     let test_boundary = if lang == Lang::Rust && !file_is_test {
-        src.find("#[cfg(test)]").map(|b| b as u32)
+        cfg_test_mod_offset(src)
     } else {
         None
     };
