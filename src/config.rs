@@ -45,7 +45,10 @@ impl Config {
             TestPolicy::FlagOnly
         };
         Config {
-            threshold: common.threshold.unwrap_or(default_threshold).clamp(0.0, 1.0),
+            threshold: common
+                .threshold
+                .unwrap_or(default_threshold)
+                .clamp(0.0, 1.0),
             min_tokens: common.min_tokens,
             excludes: common.excludes.clone(),
             default_excludes: !common.no_default_excludes,

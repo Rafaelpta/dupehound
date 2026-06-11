@@ -153,7 +153,13 @@ mod tests {
     use super::*;
     use crate::lang::Lang;
 
-    fn unit(file: u32, lines: (u32, u32), bytes: (u32, u32), sig: u32, fps: Vec<u64>) -> FunctionUnit {
+    fn unit(
+        file: u32,
+        lines: (u32, u32),
+        bytes: (u32, u32),
+        sig: u32,
+        fps: Vec<u64>,
+    ) -> FunctionUnit {
         FunctionUnit {
             file,
             lang: Lang::Typescript,
@@ -175,10 +181,7 @@ mod tests {
             unit(1, (1, 12), (0, 120), 11, vec![1, 2, 3]),
             unit(2, (1, 10), (0, 100), 9, vec![1, 2, 3]),
         ];
-        let pairs = vec![
-            Pair { a: 0, b: 1 },
-            Pair { a: 1, b: 2 },
-        ];
+        let pairs = vec![Pair { a: 0, b: 1 }, Pair { a: 1, b: 2 }];
         let clusters = build_clusters(&functions, &pairs);
         assert_eq!(clusters.len(), 1);
         assert_eq!(clusters[0].members.len(), 3);
@@ -197,10 +200,7 @@ mod tests {
             unit(0, (5, 12), (100, 400), 7, vec![2, 3]),
             unit(1, (5, 12), (100, 400), 7, vec![2, 3]),
         ];
-        let pairs = vec![
-            Pair { a: 0, b: 1 },
-            Pair { a: 2, b: 3 },
-        ];
+        let pairs = vec![Pair { a: 0, b: 1 }, Pair { a: 2, b: 3 }];
         let clusters = build_clusters(&functions, &pairs);
         assert_eq!(clusters.len(), 1);
         assert_eq!(clusters[0].members.len(), 2);

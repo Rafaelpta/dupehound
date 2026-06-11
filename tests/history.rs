@@ -47,7 +47,11 @@ fn history_charts_a_duplication_ramp() {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path();
     sh_env(root, "2024-01-15T12:00:00", &["init", "-q", "-b", "main"]);
-    sh_env(root, "2024-01-15T12:00:00", &["config", "user.email", "t@t.t"]);
+    sh_env(
+        root,
+        "2024-01-15T12:00:00",
+        &["config", "user.email", "t@t.t"],
+    );
     sh_env(root, "2024-01-15T12:00:00", &["config", "user.name", "t"]);
 
     // Months 1-6: clean growth, distinct functions.
@@ -56,7 +60,11 @@ fn history_charts_a_duplication_ramp() {
         std::fs::write(&path, base_fn(&format!("uniqueLogic{i}"), i as u32 + 3)).unwrap();
         let date = format!("2024-{month}-15T12:00:00");
         sh_env(root, &date, &["add", "-A"]);
-        sh_env(root, &date, &["commit", "-q", "-m", &format!("month {month}")]);
+        sh_env(
+            root,
+            &date,
+            &["commit", "-q", "-m", &format!("month {month}")],
+        );
     }
     // Months 7-12: the "AI adoption" ramp — renamed copies of module_0 pile up.
     for (i, month) in ["07", "08", "09", "10", "11", "12"].iter().enumerate() {
@@ -64,7 +72,11 @@ fn history_charts_a_duplication_ramp() {
         std::fs::write(&path, base_fn(&format!("rewrittenHelper{i}"), 3)).unwrap();
         let date = format!("2024-{month}-15T12:00:00");
         sh_env(root, &date, &["add", "-A"]);
-        sh_env(root, &date, &["commit", "-q", "-m", &format!("month {month}")]);
+        sh_env(
+            root,
+            &date,
+            &["commit", "-q", "-m", &format!("month {month}")],
+        );
     }
 
     let out = Command::new(env!("CARGO_BIN_EXE_dupehound"))
@@ -79,7 +91,11 @@ fn history_charts_a_duplication_ramp() {
     );
     let report: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
     let series = report["series"].as_array().unwrap();
-    assert!(series.len() >= 10, "expected ~12 snapshots, got {}", series.len());
+    assert!(
+        series.len() >= 10,
+        "expected ~12 snapshots, got {}",
+        series.len()
+    );
 
     // Slop must be 0 early and high at the end.
     let first = series[0]["slop_percent"].as_f64().unwrap();

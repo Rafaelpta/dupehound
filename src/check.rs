@@ -62,9 +62,18 @@ pub fn run(args: CheckArgs) -> Result<i32> {
 
     // What changed, and which new-side lines.
     let diff = match &mode {
-        Mode::Range { base } => git(&repo, &["diff", "-U0", "--no-color", "--no-ext-diff", base, "HEAD"])?,
-        Mode::Staged => git(&repo, &["diff", "-U0", "--no-color", "--no-ext-diff", "--cached"])?,
-        Mode::Worktree => git(&repo, &["diff", "-U0", "--no-color", "--no-ext-diff", "HEAD"])?,
+        Mode::Range { base } => git(
+            &repo,
+            &["diff", "-U0", "--no-color", "--no-ext-diff", base, "HEAD"],
+        )?,
+        Mode::Staged => git(
+            &repo,
+            &["diff", "-U0", "--no-color", "--no-ext-diff", "--cached"],
+        )?,
+        Mode::Worktree => git(
+            &repo,
+            &["diff", "-U0", "--no-color", "--no-ext-diff", "HEAD"],
+        )?,
     };
     let mut changed = parse_hunks(&diff);
     // `git diff HEAD` won't list brand-new untracked files — the most
@@ -125,7 +134,11 @@ pub fn run(args: CheckArgs) -> Result<i32> {
             for (id, count) in shared {
                 let other = &base_functions[id as usize];
                 let union = func.fingerprints.len() + other.fingerprints.len() - count as usize;
-                let sim = if union == 0 { 0.0 } else { count as f64 / union as f64 };
+                let sim = if union == 0 {
+                    0.0
+                } else {
+                    count as f64 / union as f64
+                };
                 if sim >= config.threshold && best.is_none_or(|(_, b)| sim > b) {
                     best = Some((id, sim));
                 }
@@ -141,7 +154,8 @@ pub fn run(args: CheckArgs) -> Result<i32> {
             // Moved function: the original's file changed too and the
             // original is gone from its new version.
             if changed_paths.contains(base_path.as_str()) {
-                let originals = new_side_functions(&repo, &mode, base_path, &config, &mut new_side_cache)?;
+                let originals =
+                    new_side_functions(&repo, &mode, base_path, &config, &mut new_side_cache)?;
                 let still_there = originals
                     .iter()
                     .any(|f| jaccard(&f.fingerprints, &base_fn.fingerprints) >= MOVE_EQUIVALENCE);

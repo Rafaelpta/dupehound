@@ -24,11 +24,7 @@ fn cull_cap(function_count: usize) -> usize {
 /// Functions are only compared within the same language. As a side effect,
 /// culled fingerprints are removed from every function's fingerprint set so
 /// downstream similarity math stays consistent.
-pub fn find_pairs(
-    functions: &mut [FunctionUnit],
-    threshold: f64,
-    min_shared: u32,
-) -> Vec<Pair> {
+pub fn find_pairs(functions: &mut [FunctionUnit], threshold: f64, min_shared: u32) -> Vec<Pair> {
     let mut by_lang: FxHashMap<crate::lang::Lang, Vec<u32>> = FxHashMap::default();
     for (i, f) in functions.iter().enumerate() {
         by_lang.entry(f.lang).or_default().push(i as u32);

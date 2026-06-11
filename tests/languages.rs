@@ -232,8 +232,16 @@ fn assert_clone_pair_detected(fixture: &Fixture) {
         .iter()
         .map(|m| m["name"].as_str().unwrap())
         .collect();
-    assert!(names.contains(&fixture.names.0), "missing {}", fixture.names.0);
-    assert!(names.contains(&fixture.names.1), "missing {}", fixture.names.1);
+    assert!(
+        names.contains(&fixture.names.0),
+        "missing {}",
+        fixture.names.0
+    );
+    assert!(
+        names.contains(&fixture.names.1),
+        "missing {}",
+        fixture.names.1
+    );
     let similarity = clusters[0]["similarity"].as_f64().unwrap();
     assert!(
         similarity >= 0.95,

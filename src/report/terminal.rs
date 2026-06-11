@@ -103,7 +103,11 @@ fn clusters(out: &mut String, r: &Report, all: bool) {
         r.clusters.len(),
         if r.clusters.len() == 1 { "" } else { "s" },
         shown,
-        if hidden > 0 { "  (--all for everything)" } else { "" },
+        if hidden > 0 {
+            "  (--all for everything)"
+        } else {
+            ""
+        },
     )));
     out.push_str("\n\n");
 
@@ -126,7 +130,11 @@ fn clusters(out: &mut String, r: &Report, all: bool) {
 }
 
 fn render_cluster(out: &mut String, c: &ClusterOut) {
-    let test_tag = if c.test_only { " · [tests, not scored]" } else { "" };
+    let test_tag = if c.test_only {
+        " · [tests, not scored]"
+    } else {
+        ""
+    };
     let title = format!(
         "● Cluster {} ─ {} copies · {:.0}% similar · {} deletable lines{}",
         c.id,

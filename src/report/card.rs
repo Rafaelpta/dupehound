@@ -34,7 +34,9 @@ fn grade_color(grade: char) -> &'static str {
 }
 
 fn esc(s: &str) -> String {
-    s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
 }
 
 fn frame(body: &str) -> String {
@@ -258,6 +260,9 @@ mod tests {
         let first = std::fs::read(dir.path().join("dupehound-card.png")).unwrap();
         write_card(&svg, dir.path()).unwrap();
         let second = std::fs::read(dir.path().join("dupehound-card.png")).unwrap();
-        assert_eq!(first, second, "embedded fonts should make renders identical");
+        assert_eq!(
+            first, second,
+            "embedded fonts should make renders identical"
+        );
     }
 }

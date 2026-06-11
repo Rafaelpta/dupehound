@@ -125,8 +125,7 @@ pub fn analyze_source(
             .and_then(|n| n.utf8_text(src.as_bytes()).ok())
             .unwrap_or("<anonymous>")
             .to_string();
-        let is_test = file_is_test
-            || test_boundary.is_some_and(|b| func.start_byte() as u32 >= b);
+        let is_test = file_is_test || test_boundary.is_some_and(|b| func.start_byte() as u32 >= b);
         functions.push(FunctionUnit {
             file,
             lang,

@@ -87,7 +87,11 @@ pub fn winnow(codes: &[u16], k: usize, w: usize) -> Vec<u64> {
 pub fn jaccard(a: &[u64], b: &[u64]) -> f64 {
     let shared = intersection_size(a, b);
     let union = a.len() + b.len() - shared;
-    if union == 0 { 0.0 } else { shared as f64 / union as f64 }
+    if union == 0 {
+        0.0
+    } else {
+        shared as f64 / union as f64
+    }
 }
 
 pub fn intersection_size(a: &[u64], b: &[u64]) -> usize {

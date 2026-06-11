@@ -159,7 +159,11 @@ pub fn is_test_path(rel: &str) -> bool {
         return true;
     }
     lower.split('/').any(|part| {
-        part == "tests" || part == "test" || part == "__tests__" || part == "testdata" || part == "spec"
+        part == "tests"
+            || part == "test"
+            || part == "__tests__"
+            || part == "testdata"
+            || part == "spec"
     })
 }
 
@@ -227,7 +231,10 @@ mod tests {
         );
         let minified = format!("var a={};", "x".repeat(3000));
         assert_eq!(content_skip_reason(&minified), Some("minified"));
-        assert_eq!(content_skip_reason("function ok() {\n  return 1;\n}\n"), None);
+        assert_eq!(
+            content_skip_reason("function ok() {\n  return 1;\n}\n"),
+            None
+        );
     }
 
     #[test]

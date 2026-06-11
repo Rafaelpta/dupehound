@@ -186,7 +186,13 @@ fn measure(
 fn pick_snapshots(repo: &std::path::Path, max: usize) -> Result<Vec<(String, String)>> {
     let log = git(
         repo,
-        &["log", "--first-parent", "--reverse", "--format=%H %ct", "HEAD"],
+        &[
+            "log",
+            "--first-parent",
+            "--reverse",
+            "--format=%H %ct",
+            "HEAD",
+        ],
     )?;
     let mut by_month: Vec<(String, String)> = Vec::new(); // (commit, YYYY-MM)
     for line in log.lines() {

@@ -48,7 +48,11 @@ export function median(values: number[]): number {
 "#;
 
 fn sh(dir: &Path, cmd: &str, args: &[&str]) {
-    let out = Command::new(cmd).current_dir(dir).args(args).output().unwrap();
+    let out = Command::new(cmd)
+        .current_dir(dir)
+        .args(args)
+        .output()
+        .unwrap();
     assert!(
         out.status.success(),
         "{cmd} {args:?} failed: {}",
@@ -114,7 +118,11 @@ fn moved_function_passes() {
     let dir = git_repo_with_original();
     let root = dir.path();
     // Move the function to another file: delete from origin, add elsewhere.
-    std::fs::write(root.join("src/utils/money.ts"), "export const VERSION = 2;\n").unwrap();
+    std::fs::write(
+        root.join("src/utils/money.ts"),
+        "export const VERSION = 2;\n",
+    )
+    .unwrap();
     std::fs::create_dir_all(root.join("src/billing")).unwrap();
     std::fs::write(root.join("src/billing/format.ts"), ORIGINAL).unwrap();
 
