@@ -123,6 +123,30 @@ pub fn discover(root: &Path, config: &Config) -> Result<Vec<DiscoveredFile>> {
     Ok(files)
 }
 
+/// Path-rule mirror of the walker's overrides, for callers that get paths
+/// from git trees instead of the filesystem (history, check).
+pub fn default_excluded(rel: &str) -> bool {
+    let lower = rel.to_ascii_lowercase();
+    if lower
+        .split('/')
+        .any(|part| DEFAULT_EXCLUDE_DIRS.contains(&part))
+    {
+        return true;
+    }
+    let file = lower.rsplit('/').next().unwrap_or(&lower);
+    file.ends_with(".min.js")
+        || file.ends_with(".min.mjs")
+        || file.ends_with(".bundle.js")
+        || file.ends_with(".pb.go")
+        || file.ends_with("_pb2.py")
+        || file.ends_with("_pb2.pyi")
+        || file.ends_with("_pb2_grpc.py")
+        || file.ends_with(".gen.go")
+        || file.ends_with(".gen.ts")
+        || file.ends_with(".d.ts")
+        || file.contains(".generated.")
+}
+
 /// Test files are scanned but excluded from the slop score by default:
 /// table-driven tests are legitimately repetitive.
 pub fn is_test_path(rel: &str) -> bool {
