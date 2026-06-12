@@ -108,7 +108,7 @@ pub fn discover(root: &Path, config: &Config) -> Result<Vec<DiscoveredFile>> {
     if files.is_empty() {
         anyhow::bail!(
             "no supported source files found under {} \
-             (supported: .ts .tsx .js .jsx .py .rs .go .java)",
+             (supported: .ts .tsx .js .jsx .py .rs .go .java .rb)",
             root.display()
         );
     }
@@ -155,6 +155,8 @@ pub fn is_test_path(rel: &str) -> bool {
         || file.ends_with("test.java")
         || file.ends_with("tests.java")
         || file.starts_with("conftest.")
+        || file.ends_with("_spec.rb")
+        || file.ends_with("_test.rb")
     {
         return true;
     }
@@ -221,6 +223,8 @@ mod tests {
         assert!(is_test_path("src/components/Button.test.tsx"));
         assert!(!is_test_path("src/api/testimonials.ts"));
         assert!(!is_test_path("src/contest.rs"));
+        assert!(is_test_path("spec/user_spec.rb"));
+        assert!(is_test_path("test/auth_test.rb"));
     }
 
     #[test]

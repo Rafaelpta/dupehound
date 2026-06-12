@@ -51,7 +51,7 @@ impl Lang {
             Lang::Rust => "Rust",
             Lang::Go => "Go",
             Lang::Java => "Java",
-            Lang::Ruby=>"Ruby",
+            Lang::Ruby => "Ruby",
         }
     }
 

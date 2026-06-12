@@ -50,7 +50,7 @@ $ dupehound scan .
   ★ = representative (kept) · dupehound scan --explain 1 shows the code
 ```
 
-The slop score is the percentage of code you could delete if every cluster kept only one copy; the largest copy is exempt and test files are excluded by default, since table-driven tests are repetitive by design. `--explain N` prints a cluster's code as proof, `--json` emits a versioned schema, `--card` writes a score card as SVG and PNG. Languages: TypeScript, TSX, JavaScript, Python, Rust, Go, Java.
+The slop score is the percentage of code you could delete if every cluster kept only one copy; the largest copy is exempt and test files are excluded by default, since table-driven tests are repetitive by design. `--explain N` prints a cluster's code as proof, `--json` emits a versioned schema, `--card` writes a score card as SVG and PNG. Languages: TypeScript, TSX, JavaScript, Python, Rust, Go, Java, Ruby.
 
 `dupehound history` measures the slop score at monthly snapshots, reading blobs straight from the object database (no checkouts), and reports when duplication took off:
 
