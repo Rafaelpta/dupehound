@@ -1,8 +1,10 @@
 # Changelog
 
-## 0.1.0 (unreleased)
+## 0.1.0 (2026-06-12)
 
 Initial release.
+
+- Ruby support via tree-sitter-ruby, contributed by [@paarothecoder](https://github.com/paarothecoder) (#12).
 
 - `dupehound scan`: near-duplicate function detection across TypeScript, TSX, JavaScript, Python, Rust, Go and Java via tree-sitter extraction, token normalization and robust winnowing fingerprints (MOSS algorithm, k=10 / w=8, guarantee threshold 17 tokens). Slop score with letter grade, `--json`, `--explain`, `--card`.
 - `dupehound history`: duplication-over-time chart from monthly git snapshots (no checkouts; blob-SHA fingerprint cache), inflection detection, shareable SVG/PNG card with embedded fonts.
