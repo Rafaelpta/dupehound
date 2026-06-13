@@ -96,4 +96,4 @@ suppressions handle the classic false alarms:
 Function-level granularity only: a duplicated 30-line block inside two
 otherwise different functions is not reported. Jaccard penalizes a small
 function copied into a much larger one (containment matching is on the
-roadmap). Seven languages at present.
+roadmap). See the README for the supported languages.
