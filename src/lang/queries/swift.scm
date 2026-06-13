@@ -1,7 +1,8 @@
 (function_declaration
-  name: (_) @name
+  name: (simple_identifier) @name
   body: (_) @body
 ) @func
+
 
 (init_declaration
   body: (_) @body
