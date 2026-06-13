@@ -25,6 +25,12 @@ Prebuilt binaries for macOS, Linux and Windows are on the [releases page](https:
 cargo install dupehound
 ```
 
+On macOS or Linux with Homebrew:
+
+```
+brew install rafaelpta/dupehound/dupehound
+```
+
 `history` and `check` require `git` on PATH. `scan` works on any directory.
 
 ## Usage
