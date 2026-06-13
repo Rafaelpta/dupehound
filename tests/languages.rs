@@ -184,6 +184,41 @@ def check_credential(jwt, key)
 end
 "#,
 };
+const SWIFT: Fixture = Fixture {
+    file_a: "server.swift",
+    file_b: "worker.swift",
+    names: ("retryRequest", "attemptCall"),
+    src_a: r#"import Foundation
+
+func retryRequest(url: String, attempts: Int) -> (String, String) {
+    var lastErr = ""
+    for i in 0..<attempts {
+        let (body, err) = fetch(url)
+        if err == "" {
+            return (body, "")
+        }
+        lastErr = err
+        sleep(i * 100)
+    }
+    return ("", lastErr)
+}
+"#,
+    src_b: r#"import Foundation
+
+func attemptCall(endpoint: String, retries: Int) -> (String, String) {
+    var failure = ""
+    for n in 0..<retries {
+        let (payload, err) = fetch(endpoint)
+        if err == "" {
+            return (payload, "")
+        }
+        failure = err
+        sleep(n * 100)
+    }
+    return ("", failure)
+}
+"#,
+};
 const RUST: Fixture = Fixture {
     file_a: "parser.rs",
     file_b: "lexer.rs",
@@ -296,7 +331,10 @@ fn go_renamed_clone_is_detected() {
 fn java_renamed_clone_is_detected() {
     assert_clone_pair_detected(&JAVA);
 }
-
+#[test]
+fn swift_renamed_clone_is_detected() {
+    assert_clone_pair_detected(&SWIFT);
+}
 #[test]
 fn javascript_renamed_clone_is_detected() {
     assert_clone_pair_detected(&JAVASCRIPT);

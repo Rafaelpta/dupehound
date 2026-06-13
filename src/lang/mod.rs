@@ -12,10 +12,11 @@ pub enum Lang {
     Go,
     Java,
     Ruby,
+    Swift,
 }
 
 #[cfg(test)]
-pub const ALL: [Lang; 8] = [
+pub const ALL: [Lang; 9] = [
     Lang::Typescript,
     Lang::Tsx,
     Lang::Javascript,
@@ -24,6 +25,7 @@ pub const ALL: [Lang; 8] = [
     Lang::Go,
     Lang::Java,
     Lang::Ruby,
+    Lang::Swift,
 ];
 
 impl Lang {
@@ -38,6 +40,7 @@ impl Lang {
             "go" => Some(Lang::Go),
             "java" => Some(Lang::Java),
             "rb" => Some(Lang::Ruby),
+            "swift" => Some(Lang::Swift),
             _ => None,
         }
     }
@@ -52,6 +55,7 @@ impl Lang {
             Lang::Go => "Go",
             Lang::Java => "Java",
             Lang::Ruby => "Ruby",
+            Lang::Swift => "Swift",
         }
     }
 
@@ -65,6 +69,7 @@ impl Lang {
             Lang::Go => tree_sitter_go::LANGUAGE.into(),
             Lang::Java => tree_sitter_java::LANGUAGE.into(),
             Lang::Ruby => tree_sitter_ruby::LANGUAGE.into(),
+            Lang::Swift => tree_sitter_swift::LANGUAGE.into(),
         }
     }
 
@@ -77,11 +82,12 @@ impl Lang {
             Lang::Go => include_str!("queries/go.scm"),
             Lang::Java => include_str!("queries/java.scm"),
             Lang::Ruby => include_str!("queries/ruby.scm"),
+            Lang::Swift => include_str!("queries/swift.scm"),
         }
     }
 
     pub fn query(self) -> &'static Query {
-        static QUERIES: [OnceLock<Query>; 8] = [const { OnceLock::new() }; 8];
+        static QUERIES: [OnceLock<Query>; 9] = [const { OnceLock::new() }; 9];
         QUERIES[self as usize].get_or_init(|| {
             Query::new(&self.language(), self.query_source())
                 .unwrap_or_else(|e| panic!("bad {} query: {e}", self.name()))

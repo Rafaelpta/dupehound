@@ -157,6 +157,9 @@ pub fn is_test_path(rel: &str) -> bool {
         || file.starts_with("conftest.")
         || file.ends_with("_spec.rb")
         || file.ends_with("_test.rb")
+        || file.ends_with("tests.swift")
+        || file.ends_with("test.swift")
+        || file.ends_with("spec.swift")
     {
         return true;
     }
@@ -225,6 +228,8 @@ mod tests {
         assert!(!is_test_path("src/contest.rs"));
         assert!(is_test_path("spec/user_spec.rb"));
         assert!(is_test_path("test/auth_test.rb"));
+        assert!(is_test_path("Tests/AppTests.swift"));
+        assert!(is_test_path("spec/api_spec.swift"));
     }
 
     #[test]
