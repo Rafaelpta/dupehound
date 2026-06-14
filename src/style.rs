@@ -20,6 +20,21 @@ pub fn yellow(s: &str) -> String {
     s.if_supports_color(Stdout, |t| t.yellow()).to_string()
 }
 
+pub fn red(s: &str) -> String {
+    s.if_supports_color(Stdout, |t| t.red()).to_string()
+}
+
+/// A changed token on a deleted line: red background so it reads as a block,
+/// delta-style. Keeps the terminal's default foreground for legibility.
+pub fn red_emph(s: &str) -> String {
+    s.if_supports_color(Stdout, |t| t.on_red()).to_string()
+}
+
+/// A changed token on an inserted line: green background.
+pub fn green_emph(s: &str) -> String {
+    s.if_supports_color(Stdout, |t| t.on_green()).to_string()
+}
+
 /// True when stdout is an interactive terminal. Drives the choice between the
 /// pretty rendering and the plain, copy-paste-friendly one.
 pub fn is_tty() -> bool {
