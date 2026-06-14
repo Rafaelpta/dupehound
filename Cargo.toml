@@ -1,6 +1,6 @@
 [package]
 name = "dupehound"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 description = "Sniffs out near-duplicate code in any codebase. Fast, offline, no AI required."
 license = "MIT"
