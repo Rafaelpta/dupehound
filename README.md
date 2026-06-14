@@ -1,17 +1,27 @@
-# dupehound
-
 <p align="center">
-  <a href="https://github.com/Rafaelpta/dupehound/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Rafaelpta/dupehound/actions/workflows/ci.yml/badge.svg"></a>
-  <a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/github/license/Rafaelpta/dupehound?color=blue"></a>
+  <img src="assets/hound.png" alt="dupehound" width="200">
 </p>
 
+<h1 align="center">dupehound</h1>
+
+<p align="center">Finds functions duplicated by AI, even after every identifier is renamed.</p>
+
 <p align="center">
-  <img src="assets/hound.png" alt="dupehound" width="240">
+  <img alt="Platform" src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue">
+  <a href="https://github.com/Rafaelpta/dupehound/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Rafaelpta/dupehound/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/github/license/Rafaelpta/dupehound?color=blue"></a>
+  <a href="https://github.com/Rafaelpta/dupehound/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/Rafaelpta/dupehound"></a>
 </p>
 
 dupehound is a duplicate-code detector built for codebases where agents write most of the code. It finds functions that exist more than once, even after every identifier and literal has been renamed, because it fingerprints the structure of the code instead of its text.
 
-dupehound runs three commands: `scan` reports every duplicate cluster and a repo-level slop score, `history` charts duplication across the git log and pinpoints when it took off, and `check` fails CI when a change duplicates code that already exists, naming the original to reuse. Everything runs locally and deterministically: no network, no API keys, no machine learning.
+| Command | What it does |
+|---------|--------------|
+| `scan` | reports every duplicate cluster and a repo-level slop score |
+| `history` | charts duplication across the git log and pinpoints when it took off |
+| `check` | fails CI when a change duplicates code that already exists, naming the original to reuse |
+
+Everything runs locally and deterministically: no network, no API keys, no machine learning.
 
 <p align="center">
   <img src="assets/pipeline.svg" alt="The pipeline: discover files, fingerprint every function via tree-sitter parsing and winnowing, match through an inverted index, report" width="900">
