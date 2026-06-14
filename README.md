@@ -45,6 +45,8 @@ brew install rafaelpta/dupehound/dupehound
 
 ## Usage
 
+### `scan`
+
 `dupehound scan [path]` ranks duplicate clusters by deletable lines:
 
 ```
@@ -68,6 +70,8 @@ $ dupehound scan .
 
 The slop score is the percentage of code you could delete if every cluster kept only one copy; the largest copy is exempt and test files are excluded by default, since table-driven tests are repetitive by design. `--explain N` prints a cluster's code as proof, `--json` emits a versioned schema, `--card` writes a score card as SVG and PNG. Languages: TypeScript, TSX, JavaScript, Python, Rust, Go, Java, Ruby, Swift, C, C++, PHP.
 
+### `history`
+
 `dupehound history` measures the slop score at monthly snapshots, reading blobs straight from the object database (no checkouts), and reports when duplication took off:
 
 ```
@@ -82,6 +86,8 @@ The slop score is the percentage of code you could delete if every cluster kept 
   current slop score: 36.1% (grade F)
   duplication went from ~0 to 36.1% since 2025-05
 ```
+
+### `check`
 
 `dupehound check` gates CI and pre-commit. It indexes the codebase at the base revision and probes only the functions a change adds or touches. Moved functions and in-place edits don't fire. Exit codes: 0 clean, 1 findings, 2 error.
 
