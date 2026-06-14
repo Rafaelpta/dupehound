@@ -59,18 +59,9 @@ The slop score is the percentage of code you could delete if every cluster kept 
 
 `dupehound history` measures the slop score at monthly snapshots, reading blobs straight from the object database (no checkouts), and reports when duplication took off:
 
-```
-   36.1% ┤                      ██
-         ┤                  ▂▂▆▆██
-         ┤              ▂▂████████
-         ┤          ▁▁████████████
-    0.0% ┤          ██████████████
-         └────────────────────────
-          2025-01          2025-12
-
-  current slop score: 36.1% (grade F)
-  duplication went from ~0 to 36.1% since 2025-05
-```
+<p align="center">
+  <img src="assets/history.png" alt="dupehound history charting the slop score across monthly snapshots, with the grade and the inflection point where duplication took off" width="880">
+</p>
 
 ### `check`
 
