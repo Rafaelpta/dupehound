@@ -270,6 +270,7 @@ dependencies = [
  "serde_json",
  "streaming-iterator",
  "tempfile",
+ "terminal_size",
  "thiserror",
  "tree-sitter",
  "tree-sitter-c",

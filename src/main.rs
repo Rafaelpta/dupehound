@@ -12,6 +12,7 @@ mod normalize;
 mod report;
 mod scan;
 mod score;
+mod style;
 mod walk;
 
 use clap::Parser;

@@ -49,24 +49,9 @@ brew install rafaelpta/dupehound/dupehound
 
 `dupehound scan [path]` ranks duplicate clusters by deletable lines:
 
-```
-$ dupehound scan .
-
-  dupehound v0.1.0 — scanned 19 files · 370 lines · 27 functions in 21ms
-
-  ╭─────────────────────────────────────────────────────────╮
-  │  SLOP SCORE   36.1%   grade F                           │
-  │  127 of 352 significant lines are deletable duplicates  │
-  ╰─────────────────────────────────────────────────────────╯
-
-  ● Cluster 1 ─ 4 copies · 100% similar · 42 deletable lines ─────────────
-    ★ src/utils/date.ts:1        formatDate        14 lines
-      src/api/timestamps.ts:1    renderTimestamp   14 lines   100% █████████
-      src/jobs/report_dates.ts:1 stringifyDate     14 lines   100% █████████
-      src/billing/dates.ts:1     humanizeDate      14 lines   100% █████████
-
-  ★ = representative (kept) · dupehound scan --explain 1 shows the code
-```
+<p align="center">
+  <img src="assets/scan.png" alt="dupehound scan on the vscode source tree: 2.8 percent slop, grade A, listing the top duplicate clusters" width="880">
+</p>
 
 The slop score is the percentage of code you could delete if every cluster kept only one copy; the largest copy is exempt and test files are excluded by default, since table-driven tests are repetitive by design. `--explain N` prints a cluster's code as proof, `--json` emits a versioned schema, `--card` writes a score card as SVG and PNG. Languages: TypeScript, TSX, JavaScript, Python, Rust, Go, Java, Ruby, Swift, C, C++, PHP.
 
@@ -102,7 +87,7 @@ A GitHub Actions recipe and a pre-commit setup are in [docs/ci.md](docs/ci.md). 
 
 Function bodies are parsed with tree-sitter and normalized: identifiers, strings and numbers become sentinels, comments are dropped, structure stays. k-grams of 10 tokens are rolling-hashed and selected by robust winnowing ([Schleimer, Wilkerson & Aiken, SIGMOD 2003](https://theory.stanford.edu/~aiken/publications/papers/sigmod03.pdf)), which guarantees any shared run of 17 normalized tokens is caught. An inverted fingerprint index generates candidate pairs, boilerplate fingerprints are culled, similarity is exact Jaccard, union-find builds the clusters.
 
-The defaults are conservative about false positives: generated, minified and vendored files are skipped, functions under 40 normalized tokens are ignored, and every match is verifiable with `--explain`. Grade buckets were calibrated against express (0.0%), gin (0.2%), tokio (1.1%), fastapi (1.7%) and vscode (2.8%), all grade A. vscode, at 2.97M lines and 53k functions, scans in 3.6s on a laptop. Full design notes in [docs/design.md](docs/design.md).
+The defaults are conservative about false positives: generated, minified and vendored files are skipped, functions under 40 normalized tokens are ignored, and every match is verifiable with `--explain`. Grade buckets were calibrated against express (0.0%), gin (0.2%), tokio (1.1%), fastapi (1.7%) and vscode (2.8%), all grade A. vscode, at 3.0M lines and 54k functions, scans in 2.3s on a laptop. Full design notes in [docs/design.md](docs/design.md).
 
 ## Why dupehound
 

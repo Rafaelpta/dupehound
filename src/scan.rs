@@ -149,7 +149,14 @@ pub fn scan_path(root: &Path, config: &Config) -> Result<ScanOutput> {
 }
 
 /// Print the representative and each copy of a cluster, in full, as proof.
+///
+/// On a TTY the body is rendered with a numbered, dimmed gutter and long lines
+/// soft-wrap under a `↳` continuation so nothing overflows the terminal. When
+/// piped (no width available) it falls back to a plain `│ ` gutter that stays
+/// copy-paste and grep friendly.
 fn explain(output: &ScanOutput, cluster_id: usize) -> Result<String> {
+    use crate::style;
+
     let Some(cluster) = output.report.clusters.iter().find(|c| c.id == cluster_id) else {
         anyhow::bail!(
             "no cluster {} (there are {})",
@@ -158,42 +165,131 @@ fn explain(output: &ScanOutput, cluster_id: usize) -> Result<String> {
         );
     };
     let internal = &output.clusters[cluster_id - 1];
+    // A TTY gets the pretty rendering; anything piped stays plain. Width comes
+    // from the terminal, falling back to 100 when it can't be read.
+    let pretty = style::is_tty();
+    let width = style::term_width().unwrap_or(100);
     let mut out = String::new();
-    out.push_str(&format!(
-        "\n  Cluster {} — {} copies, {:.0}% similar\n\n",
+
+    let header = format!(
+        "Cluster {} · {} copies · {:.0}% similar",
         cluster.id,
         cluster.copies,
         cluster.similarity * 100.0
-    ));
+    );
+    out.push_str(&format!("\n  {}\n\n", style::bold(&header)));
+
     for (m_out, m) in cluster.members.iter().zip(&internal.members) {
         let f = &output.functions[m.func as usize];
-        let marker = if m_out.representative {
-            "★ representative"
+        let marker_plain = if m_out.representative {
+            "★ representative".to_string()
         } else {
-            "duplicate"
+            format!("{:.0}% similar", m_out.similarity * 100.0)
         };
+        let marker = if m_out.representative {
+            style::green(&marker_plain)
+        } else {
+            style::yellow(&marker_plain)
+        };
+        let mut loc = format!("{}:{}", m_out.file, m_out.start_line);
+        if pretty {
+            // header is "  ── {loc} {name}  {marker}": 8 fixed columns plus the
+            // three variable parts. Truncate loc so the whole line fits width.
+            let budget = width
+                .saturating_sub(8 + m_out.name.chars().count() + marker_plain.chars().count())
+                .max(12);
+            loc = style::truncate_left(&loc, budget);
+        }
         out.push_str(&format!(
-            "  ── {}:{} {} ({}) {}\n",
-            m_out.file,
-            m_out.start_line,
-            m_out.name,
-            marker,
-            if m_out.representative {
-                String::new()
-            } else {
-                format!("— {:.0}% similar", m_out.similarity * 100.0)
-            }
+            "  {} {} {}  {}\n",
+            style::dim("──"),
+            style::dim(&loc),
+            style::bold(&m_out.name),
+            marker
         ));
+
         let path = &output.file_paths[f.file as usize];
         if let Ok(content) = std::fs::read_to_string(path) {
             let snippet = &content[f.start_byte as usize..f.end_byte as usize];
-            for line in snippet.lines() {
-                out.push_str("  │ ");
-                out.push_str(line);
-                out.push('\n');
+            if pretty {
+                render_body(&mut out, snippet, f.start_line, f.end_line, width);
+            } else {
+                for line in snippet.lines() {
+                    out.push_str("  │ ");
+                    out.push_str(line);
+                    out.push('\n');
+                }
             }
         }
         out.push('\n');
     }
     Ok(out)
+}
+
+/// Render a function body for a TTY: a right-aligned line number, a dimmed
+/// `│` gutter, and soft-wrapping so a long line never runs past `width`. The
+/// wrapped remainder is indented under a dimmed `↳`.
+fn render_body(out: &mut String, snippet: &str, start_line: u32, end_line: u32, width: usize) {
+    use crate::style;
+
+    let num_w = end_line.to_string().len();
+    // "  " indent + number + " │ " on the first row; the continuation row swaps
+    // the number for blanks and the leading space-pipe for "│ ↳ ".
+    let first_budget = width.saturating_sub(2 + num_w + 3).max(8);
+    let cont_budget = width.saturating_sub(2 + num_w + 5).max(8);
+
+    for (i, raw) in snippet.lines().enumerate() {
+        let lineno = start_line + i as u32;
+        let line = expand_tabs(raw, 4);
+        let segs = wrap_to_width(&line, first_budget, cont_budget);
+
+        let gutter = style::dim(&format!("{lineno:>num_w$} │ "));
+        out.push_str("  ");
+        out.push_str(&gutter);
+        out.push_str(segs.first().map_or("", |s| s.as_str()));
+        out.push('\n');
+
+        for seg in segs.iter().skip(1) {
+            let cont = style::dim(&format!("{:>num_w$} │ ↳ ", ""));
+            out.push_str("  ");
+            out.push_str(&cont);
+            out.push_str(seg);
+            out.push('\n');
+        }
+    }
+}
+
+/// Expand tab characters to `n` spaces so wrapping and indentation line up.
+fn expand_tabs(s: &str, n: usize) -> String {
+    if s.contains('\t') {
+        s.replace('\t', &" ".repeat(n))
+    } else {
+        s.to_string()
+    }
+}
+
+/// Split a line into display-width-bounded segments: the first capped at
+/// `first`, the rest at `cont`. Wraps on character boundaries (code, not prose),
+/// measuring with Unicode display width.
+fn wrap_to_width(s: &str, first: usize, cont: usize) -> Vec<String> {
+    use unicode_width::UnicodeWidthChar;
+
+    let mut segs = Vec::new();
+    let mut cur = String::new();
+    let mut cur_w = 0usize;
+    let mut budget = first;
+    for ch in s.chars() {
+        let cw = ch.width().unwrap_or(0);
+        if cur_w + cw > budget && !cur.is_empty() {
+            segs.push(std::mem::take(&mut cur));
+            cur_w = 0;
+            budget = cont;
+        }
+        cur.push(ch);
+        cur_w += cw;
+    }
+    if !cur.is_empty() || segs.is_empty() {
+        segs.push(cur);
+    }
+    segs
 }
