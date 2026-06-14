@@ -287,6 +287,88 @@ int paint_frames(int u, int v, int r, int s) {
 }
 "#,
 };
+// Regression: functions returning pointers wrap the function_declarator in a
+// pointer_declarator, which the first C query missed.
+const C_POINTER_RETURN: Fixture = Fixture {
+    file_a: "buf.c",
+    file_b: "chunk.c",
+    names: ("build_buffer", "make_chunk"),
+    src_a: r#"
+#include <stdlib.h>
+
+char *build_buffer(int n, char fill) {
+    char *p = malloc(n + 1);
+    if (!p) {
+        return NULL;
+    }
+    for (int i = 0; i < n; i++) {
+        if (i % 2 == 0) {
+            p[i] = fill;
+        } else {
+            p[i] = ' ';
+        }
+    }
+    p[n] = 0;
+    return p;
+}
+"#,
+    src_b: r#"
+#include <stdlib.h>
+
+char *make_chunk(int size, char pad) {
+    char *q = malloc(size + 1);
+    if (!q) {
+        return NULL;
+    }
+    for (int j = 0; j < size; j++) {
+        if (j % 2 == 0) {
+            q[j] = pad;
+        } else {
+            q[j] = ' ';
+        }
+    }
+    q[size] = 0;
+    return q;
+}
+"#,
+};
+
+// Regression: C++ methods defined outside the class have a qualified_identifier
+// name, not an identifier, which the first cpp query missed.
+const CPP_OUT_OF_LINE_METHOD: Fixture = Fixture {
+    file_a: "engine.cpp",
+    file_b: "worker.cpp",
+    names: ("Engine::run", "Worker::exec"),
+    src_a: r#"
+int Engine::run(int a, int b, int c) {
+    int acc = 0;
+    for (int i = a; i < b; i++) {
+        int v = i * c;
+        if (v > 0) {
+            acc += v;
+        } else {
+            acc -= v;
+        }
+    }
+    return acc;
+}
+"#,
+    src_b: r#"
+int Worker::exec(int x, int y, int z) {
+    int sum = 0;
+    for (int k = x; k < y; k++) {
+        int w = k * z;
+        if (w > 0) {
+            sum += w;
+        } else {
+            sum -= w;
+        }
+    }
+    return sum;
+}
+"#,
+};
+
 const RUST: Fixture = Fixture {
     file_a: "parser.rs",
     file_b: "lexer.rs",
@@ -425,6 +507,16 @@ fn c_renamed_clone_is_detected() {
 #[test]
 fn cpp_renamed_clone_is_detected() {
     assert_clone_pair_detected(&CPP);
+}
+
+#[test]
+fn c_pointer_return_clone_is_detected() {
+    assert_clone_pair_detected(&C_POINTER_RETURN);
+}
+
+#[test]
+fn cpp_out_of_line_method_clone_is_detected() {
+    assert_clone_pair_detected(&CPP_OUT_OF_LINE_METHOD);
 }
 
 #[test]

@@ -1,9 +1,8 @@
 (function_definition
-  declarator: (function_declarator
-    declarator: (identifier) @name)
-  body: (compound_statement) @body) @func
-
-(function_definition
-  declarator: (function_declarator
-    declarator: (field_identifier) @name)
+  declarator: [
+    (function_declarator declarator: (_) @name)
+    (pointer_declarator (function_declarator declarator: (_) @name))
+    (pointer_declarator (pointer_declarator (function_declarator declarator: (_) @name)))
+    (reference_declarator (function_declarator declarator: (_) @name))
+  ]
   body: (compound_statement) @body) @func
