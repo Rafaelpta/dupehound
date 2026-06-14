@@ -11,6 +11,41 @@ struct Fixture {
     src_b: &'static str,
     names: (&'static str, &'static str),
 }
+const PHP: Fixture = Fixture {
+    file_a: "billing.php",
+    file_b: "invoices.php",
+    names: ("computeTotal", "calculateAmount"),
+    src_a: r#"
+<?php
+function computeTotal($items, $taxRate) {
+    $subtotal = 0.0;
+    foreach ($items as $item) {
+        $price = $item["price"] * $item["qty"];
+        if (isset($item["discount"])) {
+            $price = $price * (1.0 - $item["discount"]);
+        }
+        $subtotal += $price;
+    }
+    $tax = $subtotal * $taxRate;
+    return round($subtotal + $tax, 2);
+}
+"#,
+    src_b: r#"
+<?php
+function calculateAmount($rows, $vat) {
+    $base = 0.0;
+    foreach ($rows as $row) {
+        $cost = $row["price"] * $row["qty"];
+        if (isset($row["discount"])) {
+            $cost = $cost * (1.0 - $row["discount"]);
+        }
+        $base += $cost;
+    }
+    $extra = $base * $vat;
+    return round($base + $extra, 2);
+}
+"#,
+};
 
 const PYTHON: Fixture = Fixture {
     file_a: "billing.py",
@@ -508,7 +543,10 @@ fn c_renamed_clone_is_detected() {
 fn cpp_renamed_clone_is_detected() {
     assert_clone_pair_detected(&CPP);
 }
-
+#[test]
+fn php_renamed_clone_is_detected() {
+    assert_clone_pair_detected(&PHP);
+}
 #[test]
 fn c_pointer_return_clone_is_detected() {
     assert_clone_pair_detected(&C_POINTER_RETURN);
