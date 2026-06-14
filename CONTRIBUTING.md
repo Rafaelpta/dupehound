@@ -16,8 +16,10 @@ The most wanted contribution, and a small one:
 
 1. Add the `tree-sitter-<lang>` crate to `Cargo.toml`.
 2. Add a variant to `Lang` in `src/lang/mod.rs` (extension mapping, language fn, query path).
-3. Write `src/lang/queries/<lang>.scm` capturing `@func`, `@name` and `@body` for the language's function and method forms. `go.scm` is a minimal example.
+3. Write `src/lang/queries/<lang>.scm` capturing `@func`, `@name` and `@body` for the language's function and method forms. `go.scm` is a minimal example. Constrain `@name` to the identifier node (e.g. `name: (identifier) @name`), not a wildcard, or a function can match more than once.
 4. Add a renamed-clone fixture pair to `tests/languages.rs`.
+5. Add the file extension to the "no supported source files" message in `src/walk.rs`.
+6. Add the language to the `Languages:` line in `README.md`.
 
 If `cargo test` passes, including the ABI range check and the query compilation test, you're done.
 

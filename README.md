@@ -25,6 +25,12 @@ Prebuilt binaries for macOS, Linux and Windows are on the [releases page](https:
 cargo install dupehound
 ```
 
+On macOS or Linux with Homebrew:
+
+```
+brew install rafaelpta/dupehound/dupehound
+```
+
 `history` and `check` require `git` on PATH. `scan` works on any directory.
 
 ## Usage
@@ -50,7 +56,7 @@ $ dupehound scan .
   ★ = representative (kept) · dupehound scan --explain 1 shows the code
 ```
 
-The slop score is the percentage of code you could delete if every cluster kept only one copy; the largest copy is exempt and test files are excluded by default, since table-driven tests are repetitive by design. `--explain N` prints a cluster's code as proof, `--json` emits a versioned schema, `--card` writes a score card as SVG and PNG. Languages: TypeScript, TSX, JavaScript, Python, Rust, Go, Java.
+The slop score is the percentage of code you could delete if every cluster kept only one copy; the largest copy is exempt and test files are excluded by default, since table-driven tests are repetitive by design. `--explain N` prints a cluster's code as proof, `--json` emits a versioned schema, `--card` writes a score card as SVG and PNG. Languages: TypeScript, TSX, JavaScript, Python, Rust, Go, Java, Ruby, Swift.
 
 `dupehound history` measures the slop score at monthly snapshots, reading blobs straight from the object database (no checkouts), and reports when duplication took off:
 
@@ -84,7 +90,7 @@ The defaults are conservative about false positives: generated, minified and ven
 
 ## Why dupehound
 
-Coding agents don't know what a codebase already contains, so they re-implement it. `formatDate` becomes `renderTimestamp`, then `stringifyDate`: the same logic under several names, each copy aging independently. Analyses of millions of commits report duplication roughly doubled since AI assistants went mainstream.
+Coding agents don't know what a codebase already contains, so they re-implement it. `formatDate` becomes `renderTimestamp`, then `stringifyDate`: the same logic under several names, each copy aging independently. GitClear's [analysis of 211 million changed lines](https://www.gitclear.com/ai_assistant_code_quality_2025_research) found duplicated code blocks grew 8x in 2024, the first year copy-pasted lines outnumbered moved ones.
 
 An LLM can't do this job. Duplicate detection compares every function against every other; a model samples what fits in context, an index checks everything. A merge gate must be reproducible: same input, same verdict, an algorithm you can read. dupehound is the deterministic side of the loop: the agent writes, the index remembers.
 

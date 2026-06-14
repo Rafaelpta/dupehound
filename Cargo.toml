@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 description = "Sniffs out near-duplicate code in any codebase. Fast, offline, no AI required."
 license = "MIT"
+readme = "README.md"
 repository = "https://github.com/Rafaelpta/dupehound"
 keywords = ["duplicate", "clone-detection", "code-quality", "cli", "winnowing"]
 categories = ["command-line-utilities", "development-tools"]
@@ -32,8 +33,10 @@ tree-sitter-go = "0.25.0"
 tree-sitter-java = "0.23.5"
 tree-sitter-javascript = "0.25.0"
 tree-sitter-python = "0.25.0"
+tree-sitter-ruby = "0.23.1"
 tree-sitter-rust = "0.24.2"
 tree-sitter-typescript = "0.23.2"
+tree-sitter-swift = "0.7.3"
 unicode-width = "0.2.2"
 
 [dev-dependencies]
