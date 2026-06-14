@@ -73,7 +73,7 @@ impl Lang {
 
     pub fn language(self) -> Language {
         match self {
-            Lang::Php => tree_sitter_php::language_php().into(),
+            Lang::Php => tree_sitter_php::language_php(),
             Lang::Typescript => tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into(),
             Lang::Tsx => tree_sitter_typescript::LANGUAGE_TSX.into(),
             Lang::Javascript => tree_sitter_javascript::LANGUAGE.into(),
