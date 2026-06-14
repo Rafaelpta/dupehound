@@ -69,9 +69,13 @@ pub struct ScanArgs {
     #[arg(long)]
     pub all: bool,
 
-    /// Print the code of cluster N side by side as proof
+    /// Diff the copies of cluster N against the representative
     #[arg(long, value_name = "CLUSTER")]
     pub explain: Option<usize>,
+
+    /// With --explain, show full function bodies instead of a diff
+    #[arg(long, requires = "explain")]
+    pub full: bool,
 
     /// Also write a shareable score card (dupehound-card.svg/.png)
     #[arg(long)]

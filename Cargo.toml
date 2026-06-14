@@ -24,6 +24,7 @@ resvg = { version = "0.47.0", optional = true }
 rustc-hash = "2.1.2"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.150"
+similar = { version = "2.7", features = ["inline"] }
 streaming-iterator = "0.1.9"
 terminal_size = "0.4"
 thiserror = "2.0.18"

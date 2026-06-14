@@ -27,7 +27,7 @@ pub fn run(args: ScanArgs) -> Result<i32> {
     let output = scan_path(&args.path, &config)?;
 
     if let Some(cluster_id) = args.explain {
-        print!("{}", explain(&output, cluster_id)?);
+        print!("{}", explain(&output, cluster_id, args.full)?);
         return Ok(0);
     }
 
@@ -148,13 +148,20 @@ pub fn scan_path(root: &Path, config: &Config) -> Result<ScanOutput> {
     })
 }
 
-/// Print the representative and each copy of a cluster, in full, as proof.
+const SIDE_BY_SIDE_MIN_WIDTH: usize = 120;
+const DIFF_CONTEXT: usize = 3;
+
+/// A text-styling function (one of the `style::*` color helpers).
+type StyleFn = fn(&str) -> String;
+
+/// Show how the copies of a cluster differ from the representative.
 ///
-/// On a TTY the body is rendered with a numbered, dimmed gutter and long lines
-/// soft-wrap under a `↳` continuation so nothing overflows the terminal. When
-/// piped (no width available) it falls back to a plain `│ ` gutter that stays
-/// copy-paste and grep friendly.
-fn explain(output: &ScanOutput, cluster_id: usize) -> Result<String> {
+/// By default this is a colored diff: each copy against the representative, with
+/// unchanged runs collapsed and changed tokens emphasized. On a TTY it is
+/// side-by-side when the terminal is wide and unified otherwise; piped, it is a
+/// plain unified diff that stays grep- and copy-paste-friendly. `--full` prints
+/// every body in full instead (numbered and wrapped on a TTY).
+fn explain(output: &ScanOutput, cluster_id: usize, full: bool) -> Result<String> {
     use crate::style;
 
     let Some(cluster) = output.report.clusters.iter().find(|c| c.id == cluster_id) else {
@@ -165,21 +172,119 @@ fn explain(output: &ScanOutput, cluster_id: usize) -> Result<String> {
         );
     };
     let internal = &output.clusters[cluster_id - 1];
-    // A TTY gets the pretty rendering; anything piped stays plain. Width comes
-    // from the terminal, falling back to 100 when it can't be read.
     let pretty = style::is_tty();
     let width = style::term_width().unwrap_or(100);
+
     let mut out = String::new();
+    out.push_str(&format!(
+        "\n  {}\n\n",
+        style::bold(&format!(
+            "Cluster {} · {} copies · {:.0}% similar",
+            cluster.id,
+            cluster.copies,
+            cluster.similarity * 100.0
+        ))
+    ));
 
-    let header = format!(
-        "Cluster {} · {} copies · {:.0}% similar",
-        cluster.id,
-        cluster.copies,
-        cluster.similarity * 100.0
-    );
-    out.push_str(&format!("\n  {}\n\n", style::bold(&header)));
+    // Read a member's function body from disk by its byte range. Tabs are
+    // expanded so the diff's column math matches what the terminal renders.
+    let read = |i: usize| -> Option<String> {
+        let f = &output.functions[internal.members[i].func as usize];
+        let path = &output.file_paths[f.file as usize];
+        let content = std::fs::read_to_string(path).ok()?;
+        Some(content[f.start_byte as usize..f.end_byte as usize].replace('\t', "    "))
+    };
 
-    for (m_out, m) in cluster.members.iter().zip(&internal.members) {
+    if full {
+        render_full(&mut out, output, internal, &cluster.members, pretty, width);
+        return Ok(out);
+    }
+
+    let rep_i = cluster
+        .members
+        .iter()
+        .position(|m| m.representative)
+        .unwrap_or(0);
+    let rep = &cluster.members[rep_i];
+    let rep_src = read(rep_i).unwrap_or_default();
+    let rep_loc = format!("{}:{}", rep.file, rep.start_line);
+    let rep_loc = if pretty {
+        // "  ── {loc} {name}  ★ representative" = loc + name + 24 fixed columns.
+        style::truncate_left(
+            &rep_loc,
+            width.saturating_sub(rep.name.chars().count() + 24).max(16),
+        )
+    } else {
+        rep_loc
+    };
+    out.push_str(&format!(
+        "  {} {} {}  {}\n\n",
+        style::dim("──"),
+        style::dim(&rep_loc),
+        style::bold(&rep.name),
+        style::green("★ representative")
+    ));
+
+    for (i, m) in cluster.members.iter().enumerate() {
+        if i == rep_i {
+            continue;
+        }
+        let copy_src = read(i).unwrap_or_default();
+        let loc = format!("{}:{}", m.file, m.start_line);
+        let loc = if pretty {
+            style::truncate_left(&loc, width.saturating_sub(20).max(16))
+        } else {
+            loc
+        };
+        out.push_str(&format!(
+            "  {} {}  {}\n",
+            style::dim("vs"),
+            style::dim(&loc),
+            style::yellow(&format!("{:.0}% similar", m.similarity * 100.0))
+        ));
+        if copy_src == rep_src {
+            out.push_str(&format!(
+                "     {}\n\n",
+                style::dim("identical to representative")
+            ));
+            continue;
+        }
+        if pretty && width >= SIDE_BY_SIDE_MIN_WIDTH {
+            render_diff_side_by_side(
+                &mut out,
+                &rep_src,
+                &copy_src,
+                rep.start_line,
+                m.start_line,
+                width,
+            );
+        } else {
+            render_diff_unified(
+                &mut out,
+                &rep_src,
+                &copy_src,
+                rep.start_line,
+                m.start_line,
+                width,
+            );
+        }
+        out.push('\n');
+    }
+    Ok(out)
+}
+
+/// `--full`: print each member's whole body, numbered and wrapped on a TTY,
+/// plain `│ ` gutter when piped.
+fn render_full(
+    out: &mut String,
+    output: &ScanOutput,
+    internal: &Cluster,
+    members: &[crate::report::MemberOut],
+    pretty: bool,
+    width: usize,
+) {
+    use crate::style;
+    for (m_out, m) in members.iter().zip(&internal.members) {
         let f = &output.functions[m.func as usize];
         let marker_plain = if m_out.representative {
             "★ representative".to_string()
@@ -193,8 +298,6 @@ fn explain(output: &ScanOutput, cluster_id: usize) -> Result<String> {
         };
         let mut loc = format!("{}:{}", m_out.file, m_out.start_line);
         if pretty {
-            // header is "  ── {loc} {name}  {marker}": 8 fixed columns plus the
-            // three variable parts. Truncate loc so the whole line fits width.
             let budget = width
                 .saturating_sub(8 + m_out.name.chars().count() + marker_plain.chars().count())
                 .max(12);
@@ -207,12 +310,11 @@ fn explain(output: &ScanOutput, cluster_id: usize) -> Result<String> {
             style::bold(&m_out.name),
             marker
         ));
-
         let path = &output.file_paths[f.file as usize];
         if let Ok(content) = std::fs::read_to_string(path) {
             let snippet = &content[f.start_byte as usize..f.end_byte as usize];
             if pretty {
-                render_body(&mut out, snippet, f.start_line, f.end_line, width);
+                render_body(out, snippet, f.start_line, f.end_line, width);
             } else {
                 for line in snippet.lines() {
                     out.push_str("  │ ");
@@ -223,7 +325,227 @@ fn explain(output: &ScanOutput, cluster_id: usize) -> Result<String> {
         }
         out.push('\n');
     }
-    Ok(out)
+}
+
+/// Widest line number either side of the diff will print.
+fn line_num_width(old_start: u32, old: &str, new_start: u32, new: &str) -> usize {
+    let oe = old_start as usize + old.lines().count().saturating_sub(1);
+    let ne = new_start as usize + new.lines().count().saturating_sub(1);
+    oe.max(ne).max(1).to_string().len()
+}
+
+/// Visible width of a string in terminal columns.
+fn vis_width(s: &str) -> usize {
+    use unicode_width::UnicodeWidthChar;
+    s.chars().map(|c| c.width().unwrap_or(0)).sum()
+}
+
+/// Collect a line's inline segments, dropping the trailing newline.
+fn inline_segments<'a>(
+    it: impl Iterator<Item = (bool, std::borrow::Cow<'a, str>)>,
+) -> Vec<(bool, String)> {
+    it.map(|(em, v)| (em, v.trim_end_matches(['\n', '\r']).to_string()))
+        .collect()
+}
+
+/// Style a line's segments, truncating to `max_cols` columns with a dim `…`.
+/// `base` styles ordinary text, `emph` the changed tokens. Returns the styled
+/// string and the visible columns it occupies.
+fn styled_truncated(
+    segs: &[(bool, String)],
+    base: StyleFn,
+    emph: StyleFn,
+    max_cols: usize,
+) -> (String, usize) {
+    use unicode_width::UnicodeWidthChar;
+    let total: usize = segs.iter().map(|(_, v)| vis_width(v)).sum();
+    let paint = |em: bool, t: &str| if em { emph(t) } else { base(t) };
+    if total <= max_cols {
+        let mut out = String::new();
+        for (em, v) in segs {
+            if !v.is_empty() {
+                out.push_str(&paint(*em, v));
+            }
+        }
+        return (out, total);
+    }
+    let cap = max_cols.saturating_sub(1);
+    let mut out = String::new();
+    let mut used = 0usize;
+    for (em, v) in segs {
+        if used >= cap {
+            break;
+        }
+        let mut buf = String::new();
+        for ch in v.chars() {
+            let cw = ch.width().unwrap_or(0);
+            if used + cw > cap {
+                break;
+            }
+            buf.push(ch);
+            used += cw;
+        }
+        if !buf.is_empty() {
+            out.push_str(&paint(*em, &buf));
+        }
+    }
+    out.push_str(&crate::style::dim("…"));
+    (out, used + 1)
+}
+
+/// Unified diff: equal context dim, deletions `-` red, insertions `+` green,
+/// changed tokens emphasized, unchanged runs collapsed. Long lines truncate.
+fn render_diff_unified(
+    out: &mut String,
+    old: &str,
+    new: &str,
+    old_start: u32,
+    new_start: u32,
+    width: usize,
+) {
+    use crate::style;
+    use similar::{ChangeTag, TextDiff};
+
+    let diff = TextDiff::from_lines(old, new);
+    let groups = diff.grouped_ops(DIFF_CONTEXT);
+    let num_w = line_num_width(old_start, old, new_start, new);
+    let budget = width.saturating_sub(num_w + 5).max(8);
+
+    let mut prev_end = 0usize;
+    for (gi, group) in groups.iter().enumerate() {
+        let gap = group[0].old_range().start.saturating_sub(prev_end);
+        if gi > 0 && gap > 0 {
+            out.push_str(&format!(
+                "  {}\n",
+                style::dim(&format!("⋮ {gap} unchanged lines"))
+            ));
+        }
+        for op in group {
+            for change in diff.iter_inline_changes(op) {
+                let (sign, lineno, base, emph): (&str, u32, StyleFn, StyleFn) = match change.tag() {
+                    ChangeTag::Equal => (
+                        " ",
+                        old_start + change.old_index().unwrap_or(0) as u32,
+                        style::dim,
+                        style::dim,
+                    ),
+                    ChangeTag::Delete => (
+                        "-",
+                        old_start + change.old_index().unwrap_or(0) as u32,
+                        style::red,
+                        style::red_emph,
+                    ),
+                    ChangeTag::Insert => (
+                        "+",
+                        new_start + change.new_index().unwrap_or(0) as u32,
+                        style::green,
+                        style::green_emph,
+                    ),
+                };
+                let segs = inline_segments(change.iter_strings_lossy());
+                let (body, _) = styled_truncated(&segs, base, emph, budget);
+                out.push_str(&format!(
+                    "  {} {} {}\n",
+                    style::dim(&format!("{lineno:>num_w$}")),
+                    base(sign),
+                    body
+                ));
+            }
+        }
+        prev_end = group[group.len() - 1].old_range().end;
+    }
+}
+
+/// Side-by-side diff: representative on the left, the copy on the right, each in
+/// its own numbered column truncated to half the width. Changed tokens are
+/// emphasized; unchanged runs collapse.
+fn render_diff_side_by_side(
+    out: &mut String,
+    old: &str,
+    new: &str,
+    old_start: u32,
+    new_start: u32,
+    width: usize,
+) {
+    use crate::style;
+    use similar::{ChangeTag, TextDiff};
+
+    let diff = TextDiff::from_lines(old, new);
+    let groups = diff.grouped_ops(DIFF_CONTEXT);
+    let num_w = line_num_width(old_start, old, new_start, new);
+    // Row = "  " + (num + " " + col) + " " + (num + " " + col) = 2*num_w + 2*col + 5.
+    let col = (width.saturating_sub(2 * num_w + 5) / 2).max(8);
+
+    // One rendered half-row: a line number (or blanks) and styled, padded text.
+    let half = |lineno: Option<u32>, body: &str, used: usize| -> String {
+        let num = match lineno {
+            Some(n) => style::dim(&format!("{n:>num_w$}")),
+            None => " ".repeat(num_w),
+        };
+        let pad = " ".repeat(col.saturating_sub(used));
+        format!("{num} {body}{pad}")
+    };
+    let blank_half = || format!("{} {}", " ".repeat(num_w), " ".repeat(col));
+
+    let mut prev_end = 0usize;
+    for (gi, group) in groups.iter().enumerate() {
+        let gap = group[0].old_range().start.saturating_sub(prev_end);
+        if gi > 0 && gap > 0 {
+            out.push_str(&format!(
+                "  {}\n",
+                style::dim(&format!("⋮ {gap} unchanged lines"))
+            ));
+        }
+        // Buffer deletions/insertions so a changed block pairs old↔new row-wise.
+        let mut dels: Vec<(u32, String, usize)> = Vec::new();
+        let mut inss: Vec<(u32, String, usize)> = Vec::new();
+        let flush = |out: &mut String,
+                     dels: &mut Vec<(u32, String, usize)>,
+                     inss: &mut Vec<(u32, String, usize)>| {
+            for i in 0..dels.len().max(inss.len()) {
+                let left = match dels.get(i) {
+                    Some((n, b, u)) => half(Some(*n), b, *u),
+                    None => blank_half(),
+                };
+                let right = match inss.get(i) {
+                    Some((n, b, u)) => half(Some(*n), b, *u),
+                    None => blank_half(),
+                };
+                out.push_str(&format!("  {left} {right}\n"));
+            }
+            dels.clear();
+            inss.clear();
+        };
+
+        for op in group {
+            for change in diff.iter_inline_changes(op) {
+                let segs = inline_segments(change.iter_strings_lossy());
+                match change.tag() {
+                    ChangeTag::Equal => {
+                        flush(out, &mut dels, &mut inss);
+                        let (b, u) = styled_truncated(&segs, style::dim, style::dim, col);
+                        let oln = old_start + change.old_index().unwrap_or(0) as u32;
+                        let nln = new_start + change.new_index().unwrap_or(0) as u32;
+                        out.push_str(&format!(
+                            "  {} {}\n",
+                            half(Some(oln), &b, u),
+                            half(Some(nln), &b, u)
+                        ));
+                    }
+                    ChangeTag::Delete => {
+                        let (b, u) = styled_truncated(&segs, style::red, style::red_emph, col);
+                        dels.push((old_start + change.old_index().unwrap_or(0) as u32, b, u));
+                    }
+                    ChangeTag::Insert => {
+                        let (b, u) = styled_truncated(&segs, style::green, style::green_emph, col);
+                        inss.push((new_start + change.new_index().unwrap_or(0) as u32, b, u));
+                    }
+                }
+            }
+        }
+        flush(out, &mut dels, &mut inss);
+        prev_end = group[group.len() - 1].old_range().end;
+    }
 }
 
 /// Render a function body for a TTY: a right-aligned line number, a dimmed
