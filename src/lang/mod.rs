@@ -15,10 +15,11 @@ pub enum Lang {
     Swift,
     C,
     Cpp,
+    Php,
 }
 
 #[cfg(test)]
-pub const ALL: [Lang; 11] = [
+pub const ALL: [Lang; 12] = [
     Lang::Typescript,
     Lang::Tsx,
     Lang::Javascript,
@@ -30,6 +31,7 @@ pub const ALL: [Lang; 11] = [
     Lang::Swift,
     Lang::C,
     Lang::Cpp,
+    Lang::Php,
 ];
 
 impl Lang {
@@ -47,6 +49,7 @@ impl Lang {
             "swift" => Some(Lang::Swift),
             "c" | "h" => Some(Lang::C),
             "cc" | "cpp" | "cxx" | "c++" | "hpp" | "hh" | "hxx" => Some(Lang::Cpp),
+            "php" => Some(Lang::Php),
             _ => None,
         }
     }
@@ -64,11 +67,13 @@ impl Lang {
             Lang::Swift => "Swift",
             Lang::C => "C",
             Lang::Cpp => "C++",
+            Lang::Php => "Php",
         }
     }
 
     pub fn language(self) -> Language {
         match self {
+            Lang::Php => tree_sitter_php::language_php(),
             Lang::Typescript => tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into(),
             Lang::Tsx => tree_sitter_typescript::LANGUAGE_TSX.into(),
             Lang::Javascript => tree_sitter_javascript::LANGUAGE.into(),
@@ -95,11 +100,12 @@ impl Lang {
             Lang::Swift => include_str!("queries/swift.scm"),
             Lang::C => include_str!("queries/c.scm"),
             Lang::Cpp => include_str!("queries/cpp.scm"),
+            Lang::Php => include_str!("queries/php.scm"),
         }
     }
 
     pub fn query(self) -> &'static Query {
-        static QUERIES: [OnceLock<Query>; 11] = [const { OnceLock::new() }; 11];
+        static QUERIES: [OnceLock<Query>; 12] = [const { OnceLock::new() }; 12];
         QUERIES[self as usize].get_or_init(|| {
             Query::new(&self.language(), self.query_source())
                 .unwrap_or_else(|e| panic!("bad {} query: {e}", self.name()))
