@@ -3,101 +3,164 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>dupehound — finds code your AI duplicated</title>
-<meta name="description" content="A duplicate-code detector for codebases where agents write most of the code. Finds functions duplicated by AI, even after every identifier is renamed. Fast, offline, no AI required.">
+<title>dupehound — a memory of your codebase</title>
+<meta name="description" content="dupehound finds functions your AI agent duplicated, even after every identifier is renamed. A deterministic index, not a model. Fast, offline, no AI in the pipeline.">
 <meta property="og:title" content="dupehound">
-<meta property="og:description" content="Finds functions duplicated by AI, even after every identifier is renamed. Fast, offline, no AI required.">
+<meta property="og:description" content="Your agent has no memory of your codebase, so it rewrites what already exists. dupehound is that memory: it catches duplicated functions even after every name is changed.">
 <meta property="og:type" content="website">
 <style>
   :root {
     --bg: #0d0d0d;
     --panel: #141414;
+    --panel2: #101010;
     --fg: #e0e0e0;
-    --dim: #7a7a7a;
-    --line: #262626;
+    --dim: #8a8a8a;
+    --faint: #5a5a5a;
+    --line: #242424;
     --accent: #7dcfff;
-    --warn: #e5a14b;
+    --amber: #e5a14b;
+    --green: #9ece6a;
   }
   * { box-sizing: border-box; }
-  html { -webkit-text-size-adjust: 100%; }
+  html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
   body {
     margin: 0;
     background: var(--bg);
     color: var(--fg);
     font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
     font-size: 15px;
-    line-height: 1.6;
+    line-height: 1.65;
     -webkit-font-smoothing: antialiased;
   }
   a { color: var(--accent); text-decoration: none; }
   a:hover { text-decoration: underline; }
-  .wrap { max-width: 760px; margin: 0 auto; padding: 28px 22px 80px; }
+  .wrap { max-width: 780px; margin: 0 auto; padding: 26px 22px 90px; }
 
-  nav { display: flex; flex-wrap: wrap; gap: 18px; color: var(--dim); font-size: 14px; }
+  /* nav */
+  nav { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; color: var(--dim); font-size: 14px; }
   nav a { color: var(--dim); }
   nav a:hover { color: var(--accent); text-decoration: none; }
-  nav .b { color: var(--line); }
+  nav .spacer { flex: 1; }
+  .star {
+    display: inline-flex; align-items: center; gap: 7px;
+    border: 1px solid var(--line); border-radius: 6px; padding: 5px 11px;
+    color: var(--fg); font-size: 13px; background: var(--panel);
+  }
+  .star:hover { border-color: var(--accent); color: var(--accent); text-decoration: none; }
+  .star .s { color: var(--amber); }
 
-  header { margin: 64px 0 8px; }
-  h1 { font-size: 40px; margin: 0; letter-spacing: -0.5px; }
+  /* hero */
+  header { margin: 58px 0 6px; }
+  pre.dog {
+    margin: 0 0 18px; color: var(--dim); font-size: 14px; line-height: 1.35;
+    white-space: pre; overflow-x: auto;
+  }
+  pre.dog .nose { color: var(--accent); }
+  pre.dog .trail span { color: var(--faint); animation: sniff 2.6s infinite; }
+  pre.dog .trail span:nth-child(1){animation-delay:0s}
+  pre.dog .trail span:nth-child(2){animation-delay:.18s}
+  pre.dog .trail span:nth-child(3){animation-delay:.36s}
+  pre.dog .trail span:nth-child(4){animation-delay:.54s}
+  pre.dog .trail span:nth-child(5){animation-delay:.72s}
+  pre.dog .trail span:nth-child(6){animation-delay:.9s}
+  pre.dog .found { color: var(--amber); }
+  @keyframes sniff { 0%,100%{opacity:.25} 40%{opacity:1} }
+
+  h1 { font-size: 42px; margin: 0; letter-spacing: -1px; }
   h1 .cursor {
-    display: inline-block; width: 0.6ch; height: 1.05em;
-    background: var(--accent); margin-left: 4px; transform: translateY(3px);
-    animation: blink 1.1s step-end infinite;
+    display: inline-block; width: 0.58ch; height: 1.02em; background: var(--accent);
+    margin-left: 5px; transform: translateY(4px); animation: blink 1.1s step-end infinite;
   }
   @keyframes blink { 50% { opacity: 0; } }
-  .tagline { color: var(--fg); font-size: 18px; margin: 18px 0 0; max-width: 60ch; }
-  .sub { color: var(--dim); margin-top: 10px; max-width: 64ch; }
+  .lead { font-size: 19px; margin: 18px 0 0; max-width: 62ch; }
+  .maxim {
+    margin: 22px 0 0; padding-left: 14px; border-left: 2px solid var(--line);
+    color: var(--dim); font-style: normal; max-width: 64ch;
+  }
 
-  .term {
-    background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
-    margin: 40px 0; overflow: hidden;
+  .cta { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin: 30px 0 8px; }
+  .cmdline {
+    display: flex; align-items: stretch; border: 1px solid var(--line); border-radius: 8px;
+    overflow: hidden; background: var(--panel);
   }
-  .term .bar {
-    display: flex; align-items: center; gap: 8px;
-    padding: 10px 14px; border-bottom: 1px solid var(--line); color: var(--dim); font-size: 13px;
+  .cmdline code { padding: 11px 14px; white-space: nowrap; font-size: 15px; }
+  .cmdline code .p { color: var(--accent); }
+  .cmdline button {
+    border: 0; border-left: 1px solid var(--line); background: transparent; color: var(--dim);
+    font-family: inherit; font-size: 13px; padding: 0 15px; cursor: pointer;
   }
-  .dot { width: 11px; height: 11px; border-radius: 50%; background: #333; }
-  .term .bar .title { margin-left: 8px; }
-  .term pre {
-    margin: 0; padding: 18px 16px; overflow-x: auto;
-    font-size: 13.5px; line-height: 1.55; white-space: pre;
+  .cmdline button:hover { color: var(--accent); }
+  .btn {
+    display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line);
+    border-radius: 8px; padding: 11px 16px; color: var(--fg); background: var(--panel); font-size: 14px;
   }
-  .p { color: var(--accent); }
+  .btn:hover { border-color: var(--accent); color: var(--accent); text-decoration: none; }
+  .btn .s { color: var(--amber); }
+
+  /* sections */
+  section { margin: 64px 0 0; }
+  h2 { font-size: 13px; letter-spacing: 1px; text-transform: uppercase; color: var(--dim); margin: 0 0 18px; font-weight: 400; }
+  h2::before { content: ". . . "; color: var(--faint); letter-spacing: 0; }
+  p { margin: 0 0 16px; max-width: 66ch; }
   .dim { color: var(--dim); }
+
+  /* terminal block */
+  .term { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; margin: 0 0 18px; }
+  .term .bar { display: flex; align-items: center; gap: 8px; padding: 9px 13px; border-bottom: 1px solid var(--line); color: var(--dim); font-size: 13px; }
+  .dot { width: 11px; height: 11px; border-radius: 50%; background: #2e2e2e; }
+  .term .bar .title { margin-left: 6px; }
+  .term pre { margin: 0; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.55; white-space: pre; }
+  .p { color: var(--accent); }
   .ok { color: var(--accent); }
-  .bad { color: var(--warn); }
-  .bar2 { color: var(--accent); }
+  .bad { color: var(--amber); }
+  .grn { color: var(--green); }
+  .cmt { color: var(--faint); }
 
-  .install { margin: 40px 0; }
-  .install .row {
-    display: flex; align-items: stretch; gap: 0;
-    border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--panel);
-  }
-  .install code { padding: 14px 16px; flex: 1; font-size: 15px; white-space: nowrap; overflow-x: auto; }
-  .install code .p { color: var(--accent); }
-  .install button {
-    border: 0; border-left: 1px solid var(--line); background: transparent;
-    color: var(--dim); font-family: inherit; font-size: 13px; padding: 0 16px; cursor: pointer;
-  }
-  .install button:hover { color: var(--accent); }
-  .install .alt { color: var(--dim); font-size: 13px; margin-top: 10px; }
+  /* numbered stages */
+  ol.stages { list-style: none; counter-reset: s; margin: 0; padding: 0; }
+  ol.stages li { counter-increment: s; padding: 13px 0; border-top: 1px solid var(--line); display: flex; gap: 14px; }
+  ol.stages li::before { content: counter(s); color: var(--accent); min-width: 18px; }
+  ol.stages li:last-child { border-bottom: 1px solid var(--line); }
+  ol.stages b { color: var(--fg); font-weight: 600; }
+  .callout { margin: 18px 0 0; padding: 13px 15px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel2); color: var(--dim); }
+  .callout b { color: var(--accent); font-weight: 600; }
 
-  .cmds { margin: 48px 0; border-top: 1px solid var(--line); }
-  .cmd { display: flex; gap: 16px; padding: 16px 0; border-bottom: 1px solid var(--line); }
-  .cmd .k { color: var(--accent); min-width: 88px; }
-  .cmd .v { color: var(--fg); }
+  /* three reasons */
+  .reasons { display: grid; gap: 0; border-top: 1px solid var(--line); }
+  .reasons .r { padding: 14px 0; border-bottom: 1px solid var(--line); display: flex; gap: 14px; }
+  .reasons .r .k { color: var(--accent); min-width: 130px; }
 
-  .note { color: var(--dim); margin: 40px 0; }
+  /* calibration table */
+  table { border-collapse: collapse; width: 100%; max-width: 420px; font-size: 14px; margin: 0 0 14px; }
+  td, th { text-align: left; padding: 6px 14px 6px 0; border-bottom: 1px solid var(--line); }
+  th { color: var(--dim); font-weight: 400; }
+  td.score { color: var(--green); }
+  td.grade { color: var(--dim); }
 
-  footer { margin-top: 64px; padding-top: 22px; border-top: 1px solid var(--line); color: var(--dim); font-size: 13px; }
+  .spark { color: var(--accent); font-size: 18px; letter-spacing: 2px; }
+
+  /* commands list */
+  .cmds { border-top: 1px solid var(--line); }
+  .cmd { display: flex; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+  .cmd .k { color: var(--accent); min-width: 84px; }
+
+  /* loop */
+  .loop { color: var(--dim); margin: 14px 0 0; }
+  .loop b { color: var(--fg); }
+
+  .tags { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 0; }
+  .tag { border: 1px solid var(--line); border-radius: 5px; padding: 3px 9px; color: var(--dim); font-size: 12.5px; }
+
+  footer { margin-top: 72px; padding-top: 22px; border-top: 1px solid var(--line); color: var(--dim); font-size: 13px; }
   footer a { color: var(--dim); }
   footer a:hover { color: var(--accent); }
+  footer .langs { margin-top: 8px; color: var(--faint); }
 
-  @media (max-width: 540px) {
-    h1 { font-size: 32px; }
-    .tagline { font-size: 16px; }
-    .cmd { flex-direction: column; gap: 2px; }
+  @media (max-width: 560px) {
+    h1 { font-size: 33px; }
+    .lead { font-size: 17px; }
+    .reasons .r, .cmd { flex-direction: column; gap: 3px; }
+    nav .spacer { display: none; }
   }
 </style>
 </head>
@@ -106,70 +169,166 @@
 
   <nav>
     <a href="#top">[dupehound]</a>
+    <a href="#why">[why]</a>
+    <a href="#how">[how]</a>
     <a href="#install">[install]</a>
-    <a href="https://github.com/Rafaelpta/dupehound">[github]</a>
-    <a href="https://crates.io/crates/dupehound">[crates.io]</a>
+    <span class="spacer"></span>
+    <a class="star" href="https://github.com/Rafaelpta/dupehound"><span class="s">&#9733;</span> star on github</a>
   </nav>
 
   <header id="top">
+<pre class="dog">      __
+     (___()'`;   <span class="trail"><span>.</span> <span>.</span> <span>.</span> <span>.</span> <span>.</span> <span>.</span></span>   <span class="found">&gt; duplicate found</span>
+     /,    /`
+     \"--\</pre>
     <h1>dupehound<span class="cursor"></span></h1>
-    <p class="tagline">Finds functions duplicated by AI, even after every identifier is renamed.</p>
-    <p class="sub">It fingerprints the structure of your code instead of its text, so two functions that do the same thing get caught even when every name and literal is different. Fast, offline, no AI required.</p>
+    <p class="lead">Your agent has no memory of your codebase, so it rewrites functions that already exist, just under new names. dupehound is that memory: it catches the duplicates even after every identifier is renamed.</p>
+    <p class="maxim">Any system that relies on a human to remember what the machine wrote will be limited by the human's memory, not the machine's speed.</p>
+
+    <div class="cta">
+      <div class="cmdline">
+        <code><span class="p">$</span> cargo install dupehound</code>
+        <button id="copy" type="button" aria-label="copy install command">copy</button>
+      </div>
+      <a class="btn" href="https://github.com/Rafaelpta/dupehound"><span class="s">&#9733;</span> star on github</a>
+    </div>
   </header>
 
-  <section class="term" aria-label="example scan output">
-    <div class="bar">
-      <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-      <span class="title">dupehound scan</span>
+  <section id="why">
+    <h2>your agent forgets</h2>
+    <p>An agent cannot hold your repository in its context window. It needs to format a date, so it writes <span class="dim">formatDate</span>. Three weeks later, in another file, it writes <span class="dim">renderTimestamp</span>. A month after that, <span class="dim">stringifyDate</span>. Same logic, three names, three copies aging independently.</p>
+    <div class="term">
+      <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="title">the forgetting</span></div>
+<pre>  week 1   <span class="grn">formatDate(d)</span>        <span class="cmt"># written, shipped</span>
+  week 4   <span class="grn">renderTimestamp(d)</span>   <span class="cmt"># same logic, new name</span>
+  week 8   <span class="grn">stringifyDate(d)</span>     <span class="cmt"># again. nobody remembers.</span>
+</pre>
     </div>
-<pre><span class="dim">$</span> <span class="p">dupehound scan ./src</span>
+    <p>A reviewer reads about 500 lines an hour. An agent writes 1,500 in ten minutes. The only deduplication mechanism left in that loop is your memory of what the repo already contains, and that does not scale. GitClear's analysis of 211 million changed lines found duplicated code blocks grew <b style="color:var(--amber)">8x in 2024</b>, the first year copy-pasted lines outnumbered moved ones.</p>
+  </section>
+
+  <section>
+    <h2>why not just ask an AI</h2>
+    <p>The obvious fix is to point another model at the diff. It fails in three ways that matter:</p>
+    <div class="reasons">
+      <div class="r"><span class="k">exhaustiveness</span><span>Finding duplicates means comparing every function against every other. A model samples what fits in context; an index checks everything, every time.</span></div>
+      <div class="r"><span class="k">determinism</span><span>A merge gate's verdict has to be reproducible: same input, same answer, an algorithm you can read when you disagree. You cannot block a teammate's PR on a model's vibe.</span></div>
+      <div class="r"><span class="k">cost</span><span>This runs on every commit, so it has to be free and take seconds. An LLM pass over the whole repo, per commit, is neither.</span></div>
+    </div>
+    <div class="callout">So the memory has to be <b>an index, not a model</b>. And the index has to fingerprint structure, not text, because the agent does not produce textual copies. It produces the same logic with different names.</div>
+  </section>
+
+  <section id="how">
+    <h2>how it works</h2>
+    <p>Stanford's MOSS solved this in 2003 for a different adversary, students renaming variables before submitting copied homework. An agent renaming identifiers is just a very fast student. The pipeline has four stages, each earning its place:</p>
+    <ol class="stages">
+      <li><span><b>Compare function bodies, not files.</b> Every file goes through tree-sitter; the unit of comparison is the function body, so imports, signatures and license headers can never participate in a match.</span></li>
+      <li><span><b>Normalize away renames.</b> Identifiers become one sentinel token, strings another, numbers a third, comments are dropped. A fully renamed copy now produces a byte-identical token stream; different logic does not.</span></li>
+      <li><span><b>Fingerprint with a guarantee.</b> 10-token windows are rolling-hashed and selected by robust winnowing (Schleimer, Wilkerson &amp; Aiken, SIGMOD 2003).</span></li>
+      <li><span><b>Match through an inverted index.</b> Candidate pairs come from shared fingerprints, so there is no all-pairs pass. Idiom fingerprints are culled, similarity is exact Jaccard, union-find builds the clusters.</span></li>
+    </ol>
+    <div class="callout">The guarantee: any shared run of <b>17 or more</b> normalized tokens is mathematically certain to produce a shared fingerprint, and nothing shorter than <b>10</b> tokens can ever match. Not a heuristic that usually works, a bound the test suite asserts against.</div>
+  </section>
+
+  <section>
+    <h2>scan — the audit</h2>
+    <div class="term">
+      <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="title">dupehound scan</span></div>
+<pre><span class="cmt">$</span> <span class="p">dupehound scan .</span>
 
   dupehound — scanned 2 files · 24 lines · 2 functions in 30ms
 
   <span class="bad">SLOP SCORE  41.7%   grade F</span>
   10 of 24 significant lines are deletable duplicates
 
-  <span class="bar2">●</span> Cluster 1 — 2 copies · <span class="ok">100% similar</span> · 10 deletable lines
-    <span class="ok">★</span> A.cs:2  ComputeTotal      10 lines
-      B.cs:2  CalculateAmount   10 lines   <span class="ok">100% █████████</span>
-
-  <span class="dim">slop score = lines deletable if every cluster kept one copy</span>
+  <span class="ok">●</span> Cluster 1 — 2 copies · <span class="ok">100% similar</span> · 10 deletable lines
+    <span class="ok">★</span> billing.ts:1   computeInvoiceTotal    10 lines
+      orders.ts:1    calculateOrderAmount   10 lines   <span class="ok">100% █████████</span>
 </pre>
-  </section>
-
-  <section class="install" id="install">
-    <div class="row">
-      <code><span class="p">$</span> cargo install dupehound</code>
-      <button id="copy" type="button" aria-label="copy install command">copy</button>
     </div>
-    <p class="alt">Prebuilt binaries for macOS, Linux and Windows on the <a href="https://github.com/Rafaelpta/dupehound/releases">releases page</a>, or <span style="color:var(--fg)">brew install rafaelpta/dupehound/dupehound</span>.</p>
+    <p>The slop score has a one-sentence definition: the percentage of code you could delete if every duplicate cluster kept only one copy. The largest copy in each cluster is exempt, and test files are excluded by default. For calibration, run against codebases humans curate carefully:</p>
+    <table>
+      <tr><th>repo</th><th>slop</th><th>grade</th></tr>
+      <tr><td>express</td><td class="score">0.0%</td><td class="grade">A</td></tr>
+      <tr><td>gin</td><td class="score">0.2%</td><td class="grade">A</td></tr>
+      <tr><td>tokio</td><td class="score">1.1%</td><td class="grade">A</td></tr>
+      <tr><td>fastapi</td><td class="score">1.7%</td><td class="grade">A</td></tr>
+      <tr><td>vscode</td><td class="score">2.8%</td><td class="grade">A</td></tr>
+    </table>
+    <p class="dim">Healthy repos really are this clean, which is what makes the unhealthy ones visible. vscode, at 3M lines and 54k functions, scans in about 2.3s on a laptop. A memory you hesitate to consult is one you stop consulting.</p>
   </section>
 
-  <section class="cmds" aria-label="commands">
-    <div class="cmd"><span class="k">scan</span><span class="v">reports every duplicate cluster and a repo-level slop score</span></div>
-    <div class="cmd"><span class="k">history</span><span class="v">charts duplication across the git log and pinpoints when it took off</span></div>
-    <div class="cmd"><span class="k">check</span><span class="v">fails CI when a change duplicates code that already exists, naming the original to reuse</span></div>
+  <section>
+    <h2>history — the receipts</h2>
+    <p><span class="p">dupehound history</span> replays your git log one snapshot per month, reading blobs straight from the object database without a single checkout, and charts the score over time:</p>
+    <p class="spark">▁ ▁ ▁ ▁ ▂ ▂ ▃ ▅ ▆ █</p>
+    <p class="dim">If that curve bends in the month your team adopted agents, you have something better than a feeling. It measures duplication and makes no claim about who or what wrote any line. The timestamps do the rest of the talking.</p>
   </section>
 
-  <p class="note">Coding agents don't know what a codebase already contains, so they rewrite it. GitClear found duplicated code blocks grew 8x in 2024. dupehound is the deterministic side of the loop: the agent writes, the index remembers.</p>
+  <section>
+    <h2>check — the gate that closes the loop</h2>
+    <p>Audits are diagnosis. The mechanism that changes behavior is the gate. <span class="p">check</span> indexes the codebase at your base revision, then probes only the functions your change touches. A new duplicate fails the build with the receipt:</p>
+    <div class="term">
+      <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="title">dupehound check</span></div>
+<pre><span class="cmt">$</span> <span class="p">dupehound check --diff main .</span>
+orders.ts:1 calculateOrderAmount() is a 100% duplicate of
+billing.ts:1 computeInvoiceTotal() <span class="bad">— reuse it</span>
+</pre>
+    </div>
+    <p>A moved function does not fire. A function edited in place does not fire against its own previous version. Both are recognized structurally, not by guessing. And because the output is one line that names the original, you can hand it back to the thing that caused the problem. Put this in <span class="dim">CLAUDE.md</span> or <span class="dim">AGENTS.md</span>:</p>
+    <div class="term">
+      <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="title">CLAUDE.md</span></div>
+<pre>Before committing, run <span class="grn">dupehound check .</span>
+If it reports that a function you wrote duplicates
+existing code, delete your version and reuse the
+original at the reported location.
+</pre>
+    </div>
+    <p class="loop"><b>The agent writes, the index remembers, the finding goes back to the agent.</b> It writes calculateOrderAmount, the gate tells it computeInvoiceTotal exists, it deletes its copy and imports the original. The duplication stops at the door, and nobody had to remember anything.</p>
+  </section>
+
+  <section id="install">
+    <h2>install</h2>
+    <div class="cmdline" style="display:inline-flex">
+      <code><span class="p">$</span> cargo install dupehound</code>
+      <button id="copy2" type="button" aria-label="copy install command">copy</button>
+    </div>
+    <p class="dim" style="margin-top:12px">Or a prebuilt binary for macOS, Linux or Windows from the <a href="https://github.com/Rafaelpta/dupehound/releases">releases page</a>, or <span style="color:var(--fg)">brew install rafaelpta/dupehound/dupehound</span>. A GitHub Actions and pre-commit recipe is in <a href="https://github.com/Rafaelpta/dupehound/blob/main/docs/ci.md">docs/ci.md</a>.</p>
+    <div class="tags">
+      <span class="tag">offline</span>
+      <span class="tag">deterministic</span>
+      <span class="tag">no AI in the pipeline</span>
+      <span class="tag">no telemetry</span>
+      <span class="tag">no API keys</span>
+      <span class="tag">single binary</span>
+      <span class="tag">MIT</span>
+      <span class="tag">Rust</span>
+    </div>
+  </section>
 
   <footer>
-    open source · <a href="https://github.com/Rafaelpta/dupehound/blob/main/LICENSE">MIT</a> · built in Rust ·
-    <a href="https://github.com/Rafaelpta/dupehound">github.com/Rafaelpta/dupehound</a>
+    <a href="https://github.com/Rafaelpta/dupehound"><span style="color:var(--amber)">&#9733;</span> star on github</a>
+    · open source · <a href="https://github.com/Rafaelpta/dupehound/blob/main/LICENSE">MIT</a> · built in Rust ·
+    <a href="https://crates.io/crates/dupehound">crates.io</a>
+    <div class="langs">Languages: TypeScript, TSX, JavaScript, Python, Rust, Go, Java, Ruby, Swift, C, C++, PHP, C#.</div>
   </footer>
 
 </div>
 
 <script>
   (function () {
-    var btn = document.getElementById('copy');
-    btn.addEventListener('click', function () {
-      navigator.clipboard.writeText('cargo install dupehound').then(function () {
-        var prev = btn.textContent;
-        btn.textContent = 'copied';
-        setTimeout(function () { btn.textContent = prev; }, 1400);
+    function wire(id) {
+      var btn = document.getElementById(id);
+      if (!btn) return;
+      btn.addEventListener('click', function () {
+        navigator.clipboard.writeText('cargo install dupehound').then(function () {
+          var prev = btn.textContent;
+          btn.textContent = 'copied';
+          setTimeout(function () { btn.textContent = prev; }, 1400);
+        });
       });
-    });
+    }
+    wire('copy'); wire('copy2');
   })();
 </script>
 </body>
