@@ -7,6 +7,7 @@
 <p align="center">Finds functions duplicated by AI, even after every identifier is renamed.</p>
 
 <p align="center">
+  <a href="./LICENSE"><img alt="Open Source" src="https://img.shields.io/badge/open%20source-100%25-success"></a>
   <img alt="Platform" src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue">
   <a href="https://github.com/Rafaelpta/dupehound/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Rafaelpta/dupehound/actions/workflows/ci.yml/badge.svg"></a>
   <a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/github/license/Rafaelpta/dupehound?color=blue"></a>
@@ -61,7 +62,7 @@ The slop score is the percentage of code you could delete if every cluster kept 
 <li><code>--card</code> writes a score card as SVG and PNG</li>
 </ul>
 
-Languages: TypeScript, TSX, JavaScript, Python, Rust, Go, Java, Ruby, Swift, C, C++, PHP.
+Languages: TypeScript, TSX, JavaScript, Python, Rust, Go, Java, Ruby, Swift, C, C++, PHP, C#.
 
 ### `history`
 
