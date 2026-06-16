@@ -108,7 +108,7 @@ pub fn discover(root: &Path, config: &Config) -> Result<Vec<DiscoveredFile>> {
     if files.is_empty() {
         anyhow::bail!(
             "no supported source files found under {} \
-             (supported: .ts .tsx .js .jsx .py .rs .go .java .rb .swift .c .h .cpp .cc .hpp .php)",
+             (supported: .ts .tsx .js .jsx .py .rs .go .java .rb .swift .c .h .cpp .cc .hpp .php .cs)",
             root.display()
         );
     }

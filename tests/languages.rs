@@ -47,6 +47,56 @@ function calculateAmount($rows, $vat) {
 "#,
 };
 
+const CSHARP: Fixture = Fixture {
+    file_a: "Billing.cs",
+    file_b: "Invoices.cs",
+    names: ("ComputeTotal", "CalculateAmount"),
+    src_a: r#"
+using System.Collections.Generic;
+
+class Billing
+{
+    public static decimal ComputeTotal(List<Dictionary<string, decimal>> items, decimal taxRate)
+    {
+        decimal subtotal = 0m;
+        foreach (var item in items)
+        {
+            decimal price = item["price"] * item["qty"];
+            if (item.ContainsKey("discount"))
+            {
+                price = price * (1m - item["discount"]);
+            }
+            subtotal += price;
+        }
+        decimal tax = subtotal * taxRate;
+        return subtotal + tax;
+    }
+}
+"#,
+    src_b: r#"
+using System.Collections.Generic;
+
+class Invoices
+{
+    public static decimal CalculateAmount(List<Dictionary<string, decimal>> rows, decimal vat)
+    {
+        decimal baseAmount = 0m;
+        foreach (var row in rows)
+        {
+            decimal cost = row["price"] * row["qty"];
+            if (row.ContainsKey("discount"))
+            {
+                cost = cost * (1m - row["discount"]);
+            }
+            baseAmount += cost;
+        }
+        decimal extra = baseAmount * vat;
+        return baseAmount + extra;
+    }
+}
+"#,
+};
+
 const PYTHON: Fixture = Fixture {
     file_a: "billing.py",
     file_b: "invoices.py",
@@ -546,6 +596,10 @@ fn cpp_renamed_clone_is_detected() {
 #[test]
 fn php_renamed_clone_is_detected() {
     assert_clone_pair_detected(&PHP);
+}
+#[test]
+fn csharp_renamed_clone_is_detected() {
+    assert_clone_pair_detected(&CSHARP);
 }
 #[test]
 fn c_pointer_return_clone_is_detected() {
