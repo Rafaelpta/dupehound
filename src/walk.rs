@@ -162,6 +162,8 @@ pub fn is_test_path(rel: &str) -> bool {
         || file.ends_with("spec.swift")
         || file.ends_with("test.php")
         || file.ends_with("tests.php")
+        || file.ends_with("test.cs")
+        || file.ends_with("tests.cs")
     {
         return true;
     }
@@ -234,6 +236,8 @@ mod tests {
         assert!(is_test_path("spec/api_spec.swift"));
         assert!(is_test_path("tests/UserTest.php"));
         assert!(is_test_path("tests/auth_test.php"));
+        assert!(is_test_path("tests/UserTests.cs"));
+        assert!(is_test_path("src/AppTest.cs"));
     }
 
     #[test]

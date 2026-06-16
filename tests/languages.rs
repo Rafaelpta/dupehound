@@ -11,6 +11,48 @@ struct Fixture {
     src_b: &'static str,
     names: (&'static str, &'static str),
 }
+
+const C_SHARP: Fixture = Fixture {
+    file_a: "Billing.cs",
+    file_b: "Invoices.cs",
+    names: ("ComputeTotal", "CalculateAmount"),
+    src_a: r#"
+using System.Collections.Generic;
+
+public class Billing {
+    public double ComputeTotal(List<Item> items, double taxRate) {
+        double subtotal = 0.0;
+        foreach (var item in items) {
+            double price = item.Price * item.Qty;
+            if (item.HasDiscount) {
+                price = price * (1.0 - item.Discount);
+            }
+            subtotal += price;
+        }
+        double tax = subtotal * taxRate;
+        return System.Math.Round(subtotal + tax, 2);
+    }
+}
+"#,
+    src_b: r#"
+using System.Collections.Generic;
+
+public class Invoices {
+    public double CalculateAmount(List<Row> rows, double vat) {
+        double baseAmount = 0.0;
+        foreach (var row in rows) {
+            double cost = row.Price * row.Qty;
+            if (row.HasDiscount) {
+                cost = cost * (1.0 - row.Discount);
+            }
+            baseAmount += cost;
+        }
+        double extra = baseAmount * vat;
+        return System.Math.Round(baseAmount + extra, 2);
+    }
+}
+"#,
+};
 const PHP: Fixture = Fixture {
     file_a: "billing.php",
     file_b: "invoices.php",
@@ -538,7 +580,10 @@ fn rust_renamed_clone_is_detected() {
 fn c_renamed_clone_is_detected() {
     assert_clone_pair_detected(&C);
 }
-
+#[test]
+fn csharp_renamed_clone_is_detected() {
+    assert_clone_pair_detected(&C_SHARP);
+}
 #[test]
 fn cpp_renamed_clone_is_detected() {
     assert_clone_pair_detected(&CPP);
