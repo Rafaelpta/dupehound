@@ -33,6 +33,8 @@ pub struct Config {
     pub default_excludes: bool,
     pub tests: TestPolicy,
     pub json: bool,
+    /// Experimental: also run the C# "class shape" track (scan only).
+    pub include_classes: bool,
 }
 
 impl Config {
@@ -54,6 +56,7 @@ impl Config {
             default_excludes: !common.no_default_excludes,
             tests,
             json: common.json,
+            include_classes: false,
         }
     }
 }

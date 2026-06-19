@@ -80,6 +80,11 @@ pub struct ScanArgs {
     /// Also write a shareable score card (dupehound-card.svg/.png)
     #[arg(long)]
     pub card: bool,
+
+    /// Experimental: also report C# classes whose property/method signatures
+    /// are near-duplicates (separate from the function clusters and the score)
+    #[arg(long)]
+    pub include_classes: bool,
 }
 
 #[derive(Args)]

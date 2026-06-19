@@ -42,6 +42,66 @@ pub fn render(report: &Report, all: bool) -> String {
     out
 }
 
+/// Experimental `--include-classes` section, printed after the normal report.
+/// Lists C# classes whose property/method signatures largely overlap. This is
+/// a separate finding from the function clusters and is not part of the score.
+pub fn render_shapes(report: &Report) -> String {
+    let mut out = String::new();
+    out.push('\n');
+    out.push_str(&bold("  CLASS SHAPES  "));
+    out.push_str(&dim("(experimental · --include-classes)\n"));
+    out.push_str(&dim(
+        "  types whose property/method signatures are near-duplicates\n\n",
+    ));
+
+    if report.class_shapes.is_empty() {
+        out.push_str("  No near-duplicate class shapes found.\n\n");
+        return out;
+    }
+
+    for c in &report.class_shapes {
+        let title = format!(
+            "● Shape {} ─ {} classes · {:.0}% shared signatures",
+            c.id,
+            c.copies,
+            c.similarity * 100.0,
+        );
+        out.push_str(&format!("  {}\n", bold(&title)));
+        let loc_width = c
+            .members
+            .iter()
+            .map(|m| format!("{}:{}", m.file, m.start_line).len())
+            .max()
+            .unwrap_or(0)
+            .min(58);
+        for m in &c.members {
+            let loc = truncate_left(&format!("{}:{}", m.file, m.start_line), loc_width);
+            let members = format!("{} members", m.lines);
+            if m.representative {
+                out.push_str(&format!(
+                    "    {} {loc:<loc_width$}  {}  {:>11}\n",
+                    yellow("★"),
+                    bold(&m.name),
+                    members,
+                ));
+            } else {
+                let pct = format!("{:>3.0}%", m.similarity * 100.0);
+                out.push_str(&format!(
+                    "      {loc:<loc_width$}  {}  {:>11}   {} shared\n",
+                    m.name,
+                    members,
+                    bold(&pct),
+                ));
+            }
+        }
+        out.push('\n');
+    }
+    out.push_str(&dim(
+        "  experimental: classes are matched by shared member signatures, not bodies\n",
+    ));
+    out
+}
+
 fn header(out: &mut String, r: &Report) {
     out.push('\n');
     out.push_str(&dim(&format!(
