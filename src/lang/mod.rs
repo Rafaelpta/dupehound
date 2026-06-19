@@ -117,6 +117,24 @@ impl Lang {
                 .unwrap_or_else(|e| panic!("bad {} query: {e}", self.name()))
         })
     }
+
+    /// Experimental: query capturing type declarations for the opt-in
+    /// `--include-classes` "class shape" mode. Only C# is wired up so far.
+    fn shape_query_source(self) -> Option<&'static str> {
+        match self {
+            Lang::Csharp => Some(include_str!("queries/csharp_shape.scm")),
+            _ => None,
+        }
+    }
+
+    pub fn shape_query(self) -> Option<&'static Query> {
+        let src = self.shape_query_source()?;
+        static SHAPE_QUERIES: [OnceLock<Query>; 13] = [const { OnceLock::new() }; 13];
+        Some(SHAPE_QUERIES[self as usize].get_or_init(|| {
+            Query::new(&self.language(), src)
+                .unwrap_or_else(|e| panic!("bad {} shape query: {e}", self.name()))
+        }))
+    }
 }
 
 /// What a leaf token contributes to the normalized stream.

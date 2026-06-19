@@ -23,7 +23,8 @@ pub struct ScanOutput {
 }
 
 pub fn run(args: ScanArgs) -> Result<i32> {
-    let config = Config::from_common(&args.common, DEFAULT_SCAN_THRESHOLD);
+    let mut config = Config::from_common(&args.common, DEFAULT_SCAN_THRESHOLD);
+    config.include_classes = args.include_classes;
     let output = scan_path(&args.path, &config)?;
 
     if let Some(cluster_id) = args.explain {
@@ -35,6 +36,9 @@ pub fn run(args: ScanArgs) -> Result<i32> {
         println!("{}", serde_json::to_string_pretty(&output.report)?);
     } else {
         print!("{}", terminal::render(&output.report, args.all));
+        if config.include_classes {
+            print!("{}", terminal::render_shapes(&output.report));
+        }
     }
 
     #[cfg(feature = "card")]
@@ -64,6 +68,7 @@ pub fn scan_path(root: &Path, config: &Config) -> Result<ScanOutput> {
         rel: String,
         path: std::path::PathBuf,
         functions: Vec<FunctionUnit>,
+        shapes: Vec<FunctionUnit>,
         sig_lines: u32,
         total_lines: u32,
     }
@@ -89,10 +94,16 @@ pub fn scan_path(root: &Path, config: &Config) -> Result<ScanOutput> {
             };
             // File id is stamped after the parallel phase (stable order).
             let fa = analyze_source(0, f.lang, &content, config.min_tokens, f.is_test)?;
+            let shapes = if config.include_classes {
+                crate::extract::extract_class_shapes(0, f.lang, &content, f.is_test)
+            } else {
+                Vec::new()
+            };
             Some(FileResult {
                 rel: f.rel.clone(),
                 path: f.path.clone(),
                 functions: fa.functions,
+                shapes,
                 sig_lines: fa.sig_lines,
                 total_lines: fa.total_lines,
             })
@@ -103,13 +114,18 @@ pub fn scan_path(root: &Path, config: &Config) -> Result<ScanOutput> {
     let mut file_names = Vec::with_capacity(results.len());
     let mut file_paths = Vec::with_capacity(results.len());
     let mut functions: Vec<FunctionUnit> = Vec::new();
+    let mut shape_functions: Vec<FunctionUnit> = Vec::new();
     let mut total_lines = 0u64;
     let mut sig_lines = 0u64;
     for (i, mut r) in results.into_iter().enumerate() {
         for f in &mut r.functions {
             f.file = i as u32;
         }
+        for s in &mut r.shapes {
+            s.file = i as u32;
+        }
         functions.extend(r.functions);
+        shape_functions.extend(r.shapes);
         file_names.push(r.rel);
         file_paths.push(r.path);
         total_lines += r.total_lines as u64;
@@ -119,6 +135,15 @@ pub fn scan_path(root: &Path, config: &Config) -> Result<ScanOutput> {
     let pairs = find_pairs(&mut functions, config.threshold, MIN_SHARED_PREFILTER);
     let clusters = build_clusters(&functions, &pairs);
     let score = slop_score(&clusters, sig_lines, config.tests);
+
+    // Experimental class-shape track: its own pairs/clusters, never folded
+    // into the slop score above.
+    let shape_clusters = if config.include_classes {
+        let shape_pairs = find_pairs(&mut shape_functions, config.threshold, MIN_SHARED_PREFILTER);
+        build_clusters(&shape_functions, &shape_pairs)
+    } else {
+        Vec::new()
+    };
 
     let stats = Stats {
         files: file_names.len() as u32,
@@ -131,7 +156,7 @@ pub fn scan_path(root: &Path, config: &Config) -> Result<ScanOutput> {
         skipped_non_utf8: skipped_non_utf8.into_inner(),
     };
 
-    let report = build(
+    let mut report = build(
         &root.display().to_string(),
         &file_names,
         &functions,
@@ -139,6 +164,10 @@ pub fn scan_path(root: &Path, config: &Config) -> Result<ScanOutput> {
         &score,
         stats,
     );
+    if config.include_classes {
+        report.class_shapes =
+            crate::report::clusters_out(&shape_clusters, &shape_functions, &file_names);
+    }
 
     Ok(ScanOutput {
         report,

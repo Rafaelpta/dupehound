@@ -270,6 +270,7 @@ mod tests {
             default_excludes: true,
             tests: crate::config::TestPolicy::FlagOnly,
             json: false,
+            include_classes: false,
         };
         let files = discover(root, &config).unwrap();
         let rels: Vec<&str> = files.iter().map(|f| f.rel.as_str()).collect();

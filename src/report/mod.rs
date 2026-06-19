@@ -15,6 +15,10 @@ pub struct Report {
     pub stats: Stats,
     pub score: ScoreOut,
     pub clusters: Vec<ClusterOut>,
+    /// Experimental class-shape clusters (`--include-classes`). Omitted from
+    /// JSON when empty so the default output is byte-for-byte unchanged.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub class_shapes: Vec<ClusterOut>,
 }
 
 #[derive(Serialize)]
@@ -61,21 +65,18 @@ pub struct MemberOut {
     pub test: bool,
 }
 
-pub fn build(
-    root: &str,
-    file_names: &[String],
-    functions: &[FunctionUnit],
+/// Map internal clusters to their serializable form. Shared by the function
+/// clusters and the experimental class-shape clusters.
+pub fn clusters_out(
     clusters: &[Cluster],
-    score: &Score,
-    stats: Stats,
-) -> Report {
-    // Under TestPolicy::Skip test files were never scanned; under FlagOnly
-    // test clusters are shown (labeled) but excluded from the score.
-    let clusters_out = clusters
+    functions: &[FunctionUnit],
+    file_names: &[String],
+) -> Vec<ClusterOut> {
+    clusters
         .iter()
         .enumerate()
         .map(|(i, c)| {
-            let members: Vec<MemberOut> = c
+            let mut members: Vec<MemberOut> = c
                 .members
                 .iter()
                 .map(|m| {
@@ -92,7 +93,6 @@ pub fn build(
                     }
                 })
                 .collect();
-            let mut members = members;
             if let Some(first) = members.first_mut() {
                 first.representative = true;
             }
@@ -111,7 +111,20 @@ pub fn build(
                 members,
             }
         })
-        .collect();
+        .collect()
+}
+
+pub fn build(
+    root: &str,
+    file_names: &[String],
+    functions: &[FunctionUnit],
+    clusters: &[Cluster],
+    score: &Score,
+    stats: Stats,
+) -> Report {
+    // Under TestPolicy::Skip test files were never scanned; under FlagOnly
+    // test clusters are shown (labeled) but excluded from the score.
+    let clusters_out = clusters_out(clusters, functions, file_names);
 
     Report {
         schema_version: JSON_SCHEMA_VERSION,
@@ -123,5 +136,6 @@ pub fn build(
             deletable_lines: score.deletable_lines,
         },
         clusters: clusters_out,
+        class_shapes: Vec::new(),
     }
 }
