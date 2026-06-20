@@ -54,7 +54,7 @@ brew install rafaelpta/dupehound/dupehound
   <img src="assets/scan.png" alt="dupehound scan on the vscode source tree: 2.8 percent slop, grade A, listing the top duplicate clusters" width="880">
 </p>
 
-The slop score is the percentage of code you could delete if every cluster kept only one copy; the largest copy is exempt and test files are excluded by default, since table-driven tests are repetitive by design.
+The slop score is the percentage of code you could delete if every cluster kept only one copy; the largest copy is exempt and test files are excluded by default, since table-driven tests are repetitive by design. On Rust, trait-impl methods (`From`, `Display`, ...) are also kept out of the score, since each impl is required and cannot be merged.
 
 <ul>
 <li><code>--explain N</code> prints a cluster's code as proof</li>

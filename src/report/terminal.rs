@@ -192,6 +192,8 @@ fn clusters(out: &mut String, r: &Report, all: bool) {
 fn render_cluster(out: &mut String, c: &ClusterOut) {
     let test_tag = if c.test_only {
         " · [tests, not scored]"
+    } else if c.trait_impl_only {
+        " · [trait impls, not scored]"
     } else {
         ""
     };

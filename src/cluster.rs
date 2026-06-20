@@ -18,6 +18,10 @@ pub struct Cluster {
     pub deletable_lines: u32,
     /// True when every member is test code.
     pub test_only: bool,
+    /// True when every member is a Rust trait-impl method (`From`, `Display`,
+    /// ...). Like `test_only`, these are kept out of the slop score: each impl
+    /// is a distinct, required implementation, not deletable duplication.
+    pub trait_impl_only: bool,
 }
 
 struct UnionFind {
@@ -94,10 +98,14 @@ pub fn build_clusters(functions: &[FunctionUnit], pairs: &[Pair]) -> Vec<Cluster
                 .map(|&id| functions[id as usize].sig_lines)
                 .sum();
             let test_only = ids.iter().all(|&id| functions[id as usize].is_test);
+            let trait_impl_only = ids
+                .iter()
+                .all(|&id| functions[id as usize].is_trait_impl_method);
             Cluster {
                 members,
                 deletable_lines,
                 test_only,
+                trait_impl_only,
             }
         })
         .collect();
@@ -171,6 +179,7 @@ mod tests {
             sig_lines: sig,
             fingerprints: fps,
             is_test: false,
+            is_trait_impl_method: false,
         }
     }
 
