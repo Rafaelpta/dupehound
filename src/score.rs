@@ -17,6 +17,7 @@ pub struct Score {
 pub fn slop_score(clusters: &[Cluster], total_sig_lines: u64, tests: TestPolicy) -> Score {
     let deletable: u64 = clusters
         .iter()
+        .filter(|c| !c.trait_impl_only)
         .filter(|c| tests == TestPolicy::Include || !c.test_only)
         .map(|c| c.deletable_lines as u64)
         .sum();
@@ -53,7 +54,24 @@ mod tests {
             members: vec![],
             deletable_lines: deletable,
             test_only,
+            trait_impl_only: false,
         }
+    }
+
+    #[test]
+    fn score_excludes_trait_impl_clusters_always() {
+        let trait_cluster = Cluster {
+            members: vec![],
+            deletable_lines: 200,
+            test_only: false,
+            trait_impl_only: true,
+        };
+        let clusters = vec![cluster(50, false), trait_cluster];
+        // Trait-impl clusters never count, even with --include-tests.
+        let s = slop_score(&clusters, 1000, TestPolicy::FlagOnly);
+        assert!((s.percent - 5.0).abs() < 1e-9);
+        let s = slop_score(&clusters, 1000, TestPolicy::Include);
+        assert!((s.percent - 5.0).abs() < 1e-9);
     }
 
     #[test]

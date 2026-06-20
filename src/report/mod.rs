@@ -50,7 +50,15 @@ pub struct ClusterOut {
     pub similarity: f64,
     pub deletable_lines: u32,
     pub test_only: bool,
+    /// Rust trait-impl look-alikes (`From`/`Display`/...), kept out of the
+    /// slop score. Omitted when false so existing output is unchanged.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub trait_impl_only: bool,
     pub members: Vec<MemberOut>,
+}
+
+fn is_false(b: &bool) -> bool {
+    !*b
 }
 
 #[derive(Serialize)]
@@ -108,6 +116,7 @@ pub fn clusters_out(
                 similarity,
                 deletable_lines: c.deletable_lines,
                 test_only: c.test_only,
+                trait_impl_only: c.trait_impl_only,
                 members,
             }
         })

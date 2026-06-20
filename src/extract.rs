@@ -30,6 +30,10 @@ pub struct FunctionUnit {
     /// Sorted, distinct winnowing fingerprints of the body.
     pub fingerprints: Vec<u64>,
     pub is_test: bool,
+    /// Rust only: a method inside an `impl Trait for Type` block. Every impl
+    /// of the same trait shares the method name (`from`, `fmt`, ...) by
+    /// definition, so these are near-duplicates that cannot be merged.
+    pub is_trait_impl_method: bool,
 }
 
 pub struct FileAnalysis {
@@ -63,6 +67,25 @@ fn cfg_test_mod_offset(src: &str) -> Option<u32> {
         from = at + "#[cfg(test)]".len();
     }
     None
+}
+
+/// True if `func` is a method inside a trait implementation
+/// (`impl SomeTrait for SomeType { ... }`). Such methods share their name with
+/// every other impl of the same trait (`from`, `fmt`, `cmp`, ...) by
+/// definition, so dupehound clusters them as look-alikes even though each is a
+/// distinct, required implementation that cannot be merged away. Inherent
+/// impls (`impl Type { ... }`) have no `trait` field and are not flagged.
+fn is_rust_trait_impl_method(func: Node) -> bool {
+    let Some(decl_list) = func.parent() else {
+        return false;
+    };
+    if decl_list.kind() != "declaration_list" {
+        return false;
+    }
+    let Some(impl_item) = decl_list.parent() else {
+        return false;
+    };
+    impl_item.kind() == "impl_item" && impl_item.child_by_field_name("trait").is_some()
 }
 
 /// Extract and fingerprint every function in `src`. `file` is the caller's
@@ -128,6 +151,7 @@ pub fn analyze_source(
             .unwrap_or("<anonymous>")
             .to_string();
         let is_test = file_is_test || test_boundary.is_some_and(|b| func.start_byte() as u32 >= b);
+        let is_trait_impl_method = lang == Lang::Rust && is_rust_trait_impl_method(func);
         functions.push(FunctionUnit {
             file,
             lang,
@@ -139,6 +163,7 @@ pub fn analyze_source(
             sig_lines: normalized.sig_lines,
             fingerprints,
             is_test,
+            is_trait_impl_method,
         });
     }
 
@@ -287,6 +312,7 @@ pub fn extract_class_shapes(
             sig_lines: member_count,
             fingerprints,
             is_test: file_is_test,
+            is_trait_impl_method: false,
         });
     }
     units
@@ -441,5 +467,18 @@ public class Tiny {
         assert_eq!(fa.functions.len(), 2);
         assert!(!fa.functions[0].is_test);
         assert!(fa.functions[1].is_test);
+    }
+
+    #[test]
+    fn rust_trait_impl_methods_are_flagged() {
+        // A trait impl (`fmt`) and an inherent impl (`area`). Only the trait
+        // method is flagged; the inherent method is normal, scorable code.
+        let src = "struct S { w: u32, h: u32 }\n\nimpl std::fmt::Display for S {\n    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {\n        let a = self.w + self.h;\n        let b = a * 2;\n        write!(f, \"{} {}\", a, b)\n    }\n}\n\nimpl S {\n    fn area(&self) -> u32 {\n        let a = self.w * self.h;\n        let b = a + 1;\n        a + b\n    }\n}\n";
+        let fa = analyze_source(0, Lang::Rust, src, 5, false).unwrap();
+        assert_eq!(fa.functions.len(), 2);
+        let fmt = fa.functions.iter().find(|f| f.name == "fmt").unwrap();
+        let area = fa.functions.iter().find(|f| f.name == "area").unwrap();
+        assert!(fmt.is_trait_impl_method);
+        assert!(!area.is_trait_impl_method);
     }
 }
