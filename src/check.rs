@@ -30,17 +30,25 @@ enum Mode {
 }
 
 #[derive(Serialize)]
-struct Finding {
-    file: String,
-    line: u32,
-    name: String,
-    similarity: f64,
-    original_file: String,
-    original_line: u32,
-    original_name: String,
+pub struct Finding {
+    pub file: String,
+    pub line: u32,
+    pub name: String,
+    pub similarity: f64,
+    pub original_file: String,
+    pub original_line: u32,
+    pub original_name: String,
 }
 
-pub fn run(args: CheckArgs) -> Result<i32> {
+/// The result of a check: whether the changeset touched any code at all, and
+/// the duplicate findings. The CLI and the MCP server share this; only the CLI
+/// turns it into printed output.
+pub struct CheckOutcome {
+    pub had_changes: bool,
+    pub findings: Vec<Finding>,
+}
+
+pub fn compute(args: &CheckArgs) -> Result<CheckOutcome> {
     let config = Config::from_common(&args.common, DEFAULT_CHECK_THRESHOLD);
     let repo = repo_root(&args.path)?;
 
@@ -88,8 +96,10 @@ pub fn run(args: CheckArgs) -> Result<i32> {
         }
     }
     if changed.is_empty() {
-        println!("dupehound check: no changes to check");
-        return Ok(0);
+        return Ok(CheckOutcome {
+            had_changes: false,
+            findings: Vec::new(),
+        });
     }
 
     // Index every function as of the base revision.
@@ -176,18 +186,32 @@ pub fn run(args: CheckArgs) -> Result<i32> {
     }
 
     findings.sort_by(|a, b| (a.file.as_str(), a.line).cmp(&(b.file.as_str(), b.line)));
-    if config.json {
+    Ok(CheckOutcome {
+        had_changes: true,
+        findings,
+    })
+}
+
+/// CLI entry: compute findings, then print them. Exit codes: 0 clean or no
+/// changes, 1 duplicates found, 2 error (the `?` bubbles to main).
+pub fn run(args: CheckArgs) -> Result<i32> {
+    let outcome = compute(&args)?;
+    if !outcome.had_changes {
+        println!("dupehound check: no changes to check");
+        return Ok(0);
+    }
+    if args.common.json {
         println!(
             "{}",
             serde_json::to_string_pretty(&serde_json::json!({
                 "schema_version": crate::report::JSON_SCHEMA_VERSION,
-                "findings": findings,
+                "findings": outcome.findings,
             }))?
         );
-    } else if findings.is_empty() {
+    } else if outcome.findings.is_empty() {
         println!("dupehound check: no new duplicates ✓");
     } else {
-        for f in &findings {
+        for f in &outcome.findings {
             println!(
                 "{}:{} {}() is a {:.0}% duplicate of {}:{} {}() — reuse it",
                 f.file,
@@ -201,11 +225,11 @@ pub fn run(args: CheckArgs) -> Result<i32> {
         }
         eprintln!(
             "\ndupehound check: {} new duplicate{} of existing code",
-            findings.len(),
-            if findings.len() == 1 { "" } else { "s" }
+            outcome.findings.len(),
+            if outcome.findings.len() == 1 { "" } else { "s" }
         );
     }
-    Ok(if findings.is_empty() { 0 } else { 1 })
+    Ok(if outcome.findings.is_empty() { 0 } else { 1 })
 }
 
 /// New-side content of a changed file, depending on mode.
