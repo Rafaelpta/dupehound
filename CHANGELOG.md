@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.2 (2026-06-22)
+
+- `dupehound mcp`: run as an MCP server over stdio, exposing `check` and `scan` as tools an AI coding agent can call in its loop to reuse existing code instead of rebuilding it. Local, offline, deterministic, no AI (#30).
+- C# support via tree-sitter-c-sharp (#20).
+- `scan --include-classes`: experimental, opt-in detection of C# classes whose property and method signatures are near-duplicates. Separate from the function clusters and never affects the slop score (#25).
+- `scan`: Rust trait-impl methods (`From`, `Display`, ...) are kept out of the slop score, since each impl is required and cannot be merged (#29).
+
 ## 0.1.0 (2026-06-12)
 
 Initial release.
