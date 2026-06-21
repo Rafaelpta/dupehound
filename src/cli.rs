@@ -23,6 +23,9 @@ pub enum Command {
     History(HistoryArgs),
     /// CI gate: fail when newly added code duplicates existing code
     Check(CheckArgs),
+    /// Run as an MCP server over stdio, exposing check and scan as tools an
+    /// AI coding agent can call in its loop
+    Mcp,
 }
 
 #[derive(Args)]

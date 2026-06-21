@@ -84,6 +84,16 @@ src/api/orders.ts:1 calculateOrderAmount() is a 100% duplicate of src/billing/in
 
 A GitHub Actions recipe and a pre-commit setup are in [docs/ci.md](docs/ci.md). <br><br>To make a coding agent reuse code instead of rewriting it, feed `check` back to it from `CLAUDE.md` or `AGENTS.md`; the snippet is there too.
 
+### `mcp`
+
+`dupehound mcp` runs as an MCP server over stdio, exposing `check` and `scan` as tools an AI coding agent can call itself, mid-edit, to reuse existing code instead of rebuilding it. It stays local and offline (stdio is a local pipe), deterministic, and no AI. Add it to Claude Code with:
+
+```
+claude mcp add dupehound -- dupehound mcp
+```
+
+The agent then has a `check_duplication` tool (did this change duplicate existing code, and where is the original) and a `scan_duplication` tool (the repo's duplication score and clusters).
+
 ## How it works
 
 Function bodies are parsed with tree-sitter and normalized: identifiers, strings and numbers become sentinels, comments are dropped, structure stays. k-grams of 10 tokens are rolling-hashed and selected by robust winnowing ([Schleimer, Wilkerson & Aiken, SIGMOD 2003](https://theory.stanford.edu/~aiken/publications/papers/sigmod03.pdf)), which guarantees any shared run of 17 normalized tokens is caught.<br><br> An inverted fingerprint index generates candidate pairs, boilerplate fingerprints are culled, similarity is exact Jaccard, union-find builds the clusters.

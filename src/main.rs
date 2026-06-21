@@ -8,6 +8,7 @@ mod gitsnap;
 mod history;
 mod index;
 mod lang;
+mod mcp;
 mod normalize;
 mod report;
 mod scan;
@@ -34,5 +35,6 @@ fn run(cli: cli::Cli) -> anyhow::Result<i32> {
         cli::Command::Scan(args) => scan::run(args),
         cli::Command::History(args) => history::run(args),
         cli::Command::Check(args) => check::run(args),
+        cli::Command::Mcp => mcp::run(),
     }
 }
