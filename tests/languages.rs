@@ -97,6 +97,40 @@ class Invoices
 "#,
 };
 
+const KOTLIN: Fixture = Fixture {
+    file_a: "Billing.kt",
+    file_b: "Invoices.kt",
+    names: ("computeTotal", "calculateAmount"),
+    src_a: r#"
+fun computeTotal(items: List<Map<String, Double>>, taxRate: Double): Double {
+    var subtotal = 0.0
+    for (item in items) {
+        var price = item["price"]!! * item["qty"]!!
+        if (item.containsKey("discount")) {
+            price = price * (1.0 - item["discount"]!!)
+        }
+        subtotal += price
+    }
+    val tax = subtotal * taxRate
+    return subtotal + tax
+}
+"#,
+    src_b: r#"
+fun calculateAmount(rows: List<Map<String, Double>>, vat: Double): Double {
+    var baseAmount = 0.0
+    for (row in rows) {
+        var cost = row["price"]!! * row["qty"]!!
+        if (row.containsKey("discount")) {
+            cost = cost * (1.0 - row["discount"]!!)
+        }
+        baseAmount += cost
+    }
+    val extra = baseAmount * vat
+    return baseAmount + extra
+}
+"#,
+};
+
 const PYTHON: Fixture = Fixture {
     file_a: "billing.py",
     file_b: "invoices.py",
@@ -600,6 +634,10 @@ fn php_renamed_clone_is_detected() {
 #[test]
 fn csharp_renamed_clone_is_detected() {
     assert_clone_pair_detected(&CSHARP);
+}
+#[test]
+fn kotlin_renamed_clone_is_detected() {
+    assert_clone_pair_detected(&KOTLIN);
 }
 #[test]
 fn c_pointer_return_clone_is_detected() {

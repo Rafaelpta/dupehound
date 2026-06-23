@@ -108,7 +108,7 @@ pub fn discover(root: &Path, config: &Config) -> Result<Vec<DiscoveredFile>> {
     if files.is_empty() {
         anyhow::bail!(
             "no supported source files found under {} \
-             (supported: .ts .tsx .js .jsx .py .rs .go .java .rb .swift .c .h .cpp .cc .hpp .php .cs)",
+             (supported: .ts .tsx .js .jsx .py .rs .go .java .rb .swift .c .h .cpp .cc .hpp .php .cs .kt .kts)",
             root.display()
         );
     }
@@ -162,6 +162,8 @@ pub fn is_test_path(rel: &str) -> bool {
         || file.ends_with("spec.swift")
         || file.ends_with("test.php")
         || file.ends_with("tests.php")
+        || file.ends_with("test.kt")
+        || file.ends_with("tests.kt")
     {
         return true;
     }
