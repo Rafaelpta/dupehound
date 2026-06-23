@@ -17,10 +17,11 @@ pub enum Lang {
     Cpp,
     Php,
     Csharp,
+    Kotlin,
 }
 
 #[cfg(test)]
-pub const ALL: [Lang; 13] = [
+pub const ALL: [Lang; 14] = [
     Lang::Typescript,
     Lang::Tsx,
     Lang::Javascript,
@@ -34,6 +35,7 @@ pub const ALL: [Lang; 13] = [
     Lang::Cpp,
     Lang::Php,
     Lang::Csharp,
+    Lang::Kotlin,
 ];
 
 impl Lang {
@@ -53,6 +55,7 @@ impl Lang {
             "cc" | "cpp" | "cxx" | "c++" | "hpp" | "hh" | "hxx" => Some(Lang::Cpp),
             "php" => Some(Lang::Php),
             "cs" => Some(Lang::Csharp),
+            "kt" | "kts" => Some(Lang::Kotlin),
             _ => None,
         }
     }
@@ -72,6 +75,7 @@ impl Lang {
             Lang::Cpp => "C++",
             Lang::Php => "Php",
             Lang::Csharp => "C#",
+            Lang::Kotlin => "Kotlin",
         }
     }
 
@@ -90,6 +94,7 @@ impl Lang {
             Lang::C => tree_sitter_c::LANGUAGE.into(),
             Lang::Cpp => tree_sitter_cpp::LANGUAGE.into(),
             Lang::Csharp => tree_sitter_c_sharp::LANGUAGE.into(),
+            Lang::Kotlin => tree_sitter_kotlin_ng::LANGUAGE.into(),
         }
     }
 
@@ -107,11 +112,12 @@ impl Lang {
             Lang::Cpp => include_str!("queries/cpp.scm"),
             Lang::Php => include_str!("queries/php.scm"),
             Lang::Csharp => include_str!("queries/csharp.scm"),
+            Lang::Kotlin => include_str!("queries/kotlin.scm"),
         }
     }
 
     pub fn query(self) -> &'static Query {
-        static QUERIES: [OnceLock<Query>; 13] = [const { OnceLock::new() }; 13];
+        static QUERIES: [OnceLock<Query>; 14] = [const { OnceLock::new() }; 14];
         QUERIES[self as usize].get_or_init(|| {
             Query::new(&self.language(), self.query_source())
                 .unwrap_or_else(|e| panic!("bad {} query: {e}", self.name()))
@@ -129,7 +135,7 @@ impl Lang {
 
     pub fn shape_query(self) -> Option<&'static Query> {
         let src = self.shape_query_source()?;
-        static SHAPE_QUERIES: [OnceLock<Query>; 13] = [const { OnceLock::new() }; 13];
+        static SHAPE_QUERIES: [OnceLock<Query>; 14] = [const { OnceLock::new() }; 14];
         Some(SHAPE_QUERIES[self as usize].get_or_init(|| {
             Query::new(&self.language(), src)
                 .unwrap_or_else(|e| panic!("bad {} shape query: {e}", self.name()))

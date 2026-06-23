@@ -42,6 +42,7 @@ tree-sitter-swift = "0.7.3"
 tree-sitter-php = "0.22.2"
 unicode-width = "0.2.2"
 tree-sitter-c-sharp = "0.23.5"
+tree-sitter-kotlin-ng = "1.1.0"
 
 [dev-dependencies]
 insta = { version = "1.47.2", features = ["json"] }
