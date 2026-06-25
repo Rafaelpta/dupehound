@@ -229,6 +229,26 @@ fn member_signature(member: Node, src: &str) -> Option<String> {
     Some(trimmed.split_whitespace().collect::<Vec<_>>().join(" "))
 }
 
+/// Canonical constructor signature: just the parameter types, e.g. `ctor(Graph)`.
+/// A classic `constructor_declaration` and a C# primary constructor on the class
+/// header both normalize to this, so the two forms of the same class match (#27).
+fn constructor_signature(param_list: Node, src: &str) -> String {
+    let mut types = Vec::new();
+    let mut cur = param_list.walk();
+    for param in param_list.named_children(&mut cur) {
+        if param.kind() != "parameter" {
+            continue;
+        }
+        if let Some(t) = param
+            .child_by_field_name("type")
+            .and_then(|ty| ty.utf8_text(src.as_bytes()).ok())
+        {
+            types.push(t.split_whitespace().collect::<Vec<_>>().join(" "));
+        }
+    }
+    format!("ctor({})", types.join(", "))
+}
+
 /// Extract one class-shape unit per type declaration whose member-signature set
 /// is large enough to be meaningful. Returns plain `FunctionUnit`s (kept in
 /// their own vector by the caller) so the existing index/cluster pipeline can
@@ -277,15 +297,37 @@ pub fn extract_class_shapes(
         };
 
         let mut fingerprints: Vec<u64> = Vec::new();
+        let push_sig = |fps: &mut Vec<u64>, sig: &str| {
+            let mut h = FxHasher::default();
+            sig.hash(&mut h);
+            fps.push(h.finish());
+        };
         let mut walker = body.walk();
         for member in body.named_children(&mut walker) {
             if !is_shape_member(member.kind()) {
                 continue;
             }
-            if let Some(sig) = member_signature(member, src) {
-                let mut h = FxHasher::default();
-                sig.hash(&mut h);
-                fingerprints.push(h.finish());
+            // A constructor is canonicalized to its parameter types (`ctor(Graph)`)
+            // so a class using a classic constructor matches one that moved the
+            // same constructor onto the class header as a primary constructor (#27).
+            let sig = if member.kind() == "constructor_declaration" {
+                member
+                    .child_by_field_name("parameters")
+                    .map(|pl| constructor_signature(pl, src))
+            } else {
+                member_signature(member, src)
+            };
+            if let Some(sig) = sig {
+                push_sig(&mut fingerprints, &sig);
+            }
+        }
+        // C# primary constructor: its parameters live on the class header, not as
+        // a body member, so synthesize the same canonical signature here (#27).
+        let mut fwalk = func.walk();
+        for child in func.children(&mut fwalk) {
+            if child.kind() == "parameter_list" {
+                push_sig(&mut fingerprints, &constructor_signature(child, src));
+                break;
             }
         }
         fingerprints.sort_unstable();
@@ -453,6 +495,35 @@ public class Tiny {
         let j =
             crate::fingerprint::jaccard(&by("Customer").fingerprints, &by("Invoice").fingerprints);
         assert!(j < 0.1, "unrelated classes scored {j}");
+    }
+
+    #[test]
+    fn primary_constructor_matches_classic_constructor() {
+        // The same model written two ways: a classic constructor in the body vs a
+        // C# primary constructor on the class header. Both should normalize to the
+        // same shape so the rewrite is still flagged as a duplicate (#27).
+        let src = r#"
+public class Classic {
+    public Classic(Graph graph) { this.Cur = graph; }
+    public Graph Cur { get; private set; }
+    public string Name { get; set; }
+    public int Id { get; set; }
+}
+
+public class Primary(Graph graph) {
+    public Graph Cur { get; private set; } = graph;
+    public string Name { get; set; }
+    public int Id { get; set; }
+}
+"#;
+        let shapes = extract_class_shapes(0, Lang::Csharp, src, false);
+        let by = |n: &str| shapes.iter().find(|s| s.name == n).unwrap();
+        let j =
+            crate::fingerprint::jaccard(&by("Classic").fingerprints, &by("Primary").fingerprints);
+        assert!(
+            (j - 1.0).abs() < 1e-9,
+            "primary and classic constructor forms should match, got {j}"
+        );
     }
 
     #[test]
