@@ -1,0 +1,30 @@
+name: benchmark
+
+# Deterministic tier: free, no network, no LLM. Runs on every PR and push to
+# main so a change that regresses dupehound's planted-clone accuracy fails CI.
+# The paid LLM tier is run on demand (workflow_dispatch) and its dated results
+# are committed under benchmarks/results/.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  deterministic-tier:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build dupehound
+        run: cargo build --release
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Planted-clone regression gate
+        env:
+          DUPEHOUND_BIN: ${{ github.workspace }}/target/release/dupehound
+        run: python3 benchmarks/harness/ci_check.py

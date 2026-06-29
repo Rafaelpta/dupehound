@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="780" height="484" viewBox="0 0 780 484" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif">
+  <rect width="780" height="484" fill="#ffffff"/>
+  <text x="40" y="36" font-size="20" font-weight="700" fill="#111">Duplicate pairs recovered vs repository size</text>
+  <text x="40" y="60" font-size="13" fill="#666">39 planted pairs hidden in microsoft/vscode; agents = mean of n=2</text>
+
+  <!-- axes -->
+  <line x1="70" y1="84" x2="70" y2="404" stroke="#ccc" stroke-width="1"/>
+  <line x1="70" y1="404" x2="720" y2="404" stroke="#ccc" stroke-width="1"/>
+
+  <!-- y gridlines + labels -->
+  <g font-size="12" fill="#888" text-anchor="end">
+    <line x1="70" y1="404" x2="720" y2="404" stroke="#eee"/><text x="60" y="408">0</text>
+    <line x1="70" y1="322" x2="720" y2="322" stroke="#eee"/><text x="60" y="326">10</text>
+    <line x1="70" y1="240" x2="720" y2="240" stroke="#eee"/><text x="60" y="244">20</text>
+    <line x1="70" y1="158" x2="720" y2="158" stroke="#eee"/><text x="60" y="162">30</text>
+    <line x1="70" y1="84"  x2="720" y2="84"  stroke="#eee"/><text x="60" y="88">39</text>
+  </g>
+
+  <!-- x labels -->
+  <g font-size="13" fill="#555" text-anchor="middle">
+    <text x="70"  y="428">10k LOC</text>
+    <text x="390" y="428">100k LOC</text>
+    <text x="715" y="428">1M LOC</text>
+  </g>
+
+  <!-- dupehound: 36, 36, 36 (flat) -->
+  <polyline points="70,108 390,108 715,108" fill="none" stroke="#0a7d28" stroke-width="3.5"/>
+  <g fill="#0a7d28"><circle cx="70" cy="108" r="4.5"/><circle cx="390" cy="108" r="4.5"/><circle cx="715" cy="108" r="4.5"/></g>
+  <text x="712" y="100" font-size="12" font-weight="700" fill="#0a7d28" text-anchor="end">dupehound 36 (0.74s, $0)</text>
+
+  <!-- opus: 22, 13, 0 -->
+  <polyline points="70,224 390,297 715,404" fill="none" stroke="#7b3fe4" stroke-width="2.5"/>
+  <g fill="#7b3fe4"><circle cx="70" cy="224" r="4"/><circle cx="390" cy="297" r="4"/><circle cx="715" cy="404" r="4"/></g>
+  <text x="64" y="219" font-size="12" fill="#7b3fe4" text-anchor="end">opus 22</text>
+
+  <!-- haiku: 20, 16, 6 -->
+  <polyline points="70,240 390,273 715,355" fill="none" stroke="#d98300" stroke-width="2.5"/>
+  <g fill="#d98300"><circle cx="70" cy="240" r="4"/><circle cx="390" cy="273" r="4"/><circle cx="715" cy="355" r="4"/></g>
+  <text x="64" y="254" font-size="12" fill="#d98300" text-anchor="end">haiku 20</text>
+
+  <!-- sonnet: 19, 0, then DNF -->
+  <polyline points="70,248 390,404" fill="none" stroke="#c0392b" stroke-width="2.5" stroke-dasharray="1"/>
+  <g fill="#c0392b"><circle cx="70" cy="248" r="4"/><circle cx="390" cy="404" r="4"/></g>
+  <text x="712" y="396" font-size="12" fill="#c0392b" text-anchor="end">sonnet: DNF (timed out)</text>
+
+  <text x="40" y="462" font-size="12.5" fill="#444">dupehound holds 36 of 39 flat at every scale; the LLM agents degrade to about zero or time out as the repo grows.</text>
+</svg>

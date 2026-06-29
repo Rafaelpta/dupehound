@@ -1,0 +1,134 @@
+{
+  "meta": {
+    "date": "2026-06-27",
+    "tag": "dupehound-scaling",
+    "repo": "microsoft/vscode",
+    "commit": "dac0f5b39188986a409f25916f136377ce141e85",
+    "seed": 7,
+    "slices": [
+      {
+        "name": "microsoft_vscode-10k",
+        "host_loc": 10071,
+        "host_files": 39
+      },
+      {
+        "name": "microsoft_vscode-100k",
+        "host_loc": 100101,
+        "host_files": 312
+      },
+      {
+        "name": "microsoft_vscode-500k",
+        "host_loc": 500023,
+        "host_files": 2256
+      }
+    ],
+    "needle_functions": 32,
+    "needle_pairs": 19,
+    "dupehound": "dupehound 0.1.0",
+    "models": [],
+    "dh_runs": 2,
+    "agent_runs": 1,
+    "spent": 0.0,
+    "cap": 50.0,
+    "notes": []
+  },
+  "dupehound": [
+    {
+      "system": "dupehound 0.1.0",
+      "kind": "deterministic",
+      "simulated": false,
+      "runs": 2,
+      "f1_mean": 0.8823529411764706,
+      "f1_std": 0.0,
+      "recall_mean": 0.7894736842105263,
+      "recall_std": 0.0,
+      "precision_mean": 1.0,
+      "precision_std": 0.0,
+      "mcc_mean": 0.8848211200504664,
+      "recall_by_type": {
+        "1": 1.0,
+        "2": 1.0,
+        "3": 0.8,
+        "4": 0.0
+      },
+      "tp_mean": 15.0,
+      "fp_mean": 0.0,
+      "fn_mean": 4.0,
+      "wall_ms_mean": 29.871249499999976,
+      "wall_ms_std": 10.348566432527917,
+      "tokens_in_mean": 0.0,
+      "tokens_out_mean": 0.0,
+      "usd_mean": 0.0,
+      "cost_per_tp": 0.0,
+      "determinism": 1.0,
+      "slice": "microsoft_vscode-10k",
+      "host_loc": 10071,
+      "host_files": 39
+    },
+    {
+      "system": "dupehound 0.1.0",
+      "kind": "deterministic",
+      "simulated": false,
+      "runs": 2,
+      "f1_mean": 0.8823529411764706,
+      "f1_std": 0.0,
+      "recall_mean": 0.7894736842105263,
+      "recall_std": 0.0,
+      "precision_mean": 1.0,
+      "precision_std": 0.0,
+      "mcc_mean": 0.8848211200504664,
+      "recall_by_type": {
+        "1": 1.0,
+        "2": 1.0,
+        "3": 0.8,
+        "4": 0.0
+      },
+      "tp_mean": 15.0,
+      "fp_mean": 0.0,
+      "fn_mean": 4.0,
+      "wall_ms_mean": 84.8413334999999,
+      "wall_ms_std": 1.5697183643712334,
+      "tokens_in_mean": 0.0,
+      "tokens_out_mean": 0.0,
+      "usd_mean": 0.0,
+      "cost_per_tp": 0.0,
+      "determinism": 1.0,
+      "slice": "microsoft_vscode-100k",
+      "host_loc": 100101,
+      "host_files": 312
+    },
+    {
+      "system": "dupehound 0.1.0",
+      "kind": "deterministic",
+      "simulated": false,
+      "runs": 2,
+      "f1_mean": 0.8823529411764706,
+      "f1_std": 0.0,
+      "recall_mean": 0.7894736842105263,
+      "recall_std": 0.0,
+      "precision_mean": 1.0,
+      "precision_std": 0.0,
+      "mcc_mean": 0.8848211200504664,
+      "recall_by_type": {
+        "1": 1.0,
+        "2": 1.0,
+        "3": 0.8,
+        "4": 0.0
+      },
+      "tp_mean": 15.0,
+      "fp_mean": 0.0,
+      "fn_mean": 4.0,
+      "wall_ms_mean": 327.78804149999985,
+      "wall_ms_std": 1.406907028003213,
+      "tokens_in_mean": 0.0,
+      "tokens_out_mean": 0.0,
+      "usd_mean": 0.0,
+      "cost_per_tp": 0.0,
+      "determinism": 1.0,
+      "slice": "microsoft_vscode-500k",
+      "host_loc": 500023,
+      "host_files": 2256
+    }
+  ],
+  "agents": []
+}

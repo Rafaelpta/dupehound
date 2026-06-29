@@ -24,9 +24,37 @@ dupehound is a duplicate-code detector built for codebases where agents write mo
 
 Everything runs locally and deterministically (no network, API keys, or AI required).
 
+## Numbers
+
+We planted 39 known duplicate function pairs (mostly renamed copy-paste, the bulk of real duplication) in real code from [microsoft/vscode](https://github.com/microsoft/vscode), a 3.3-million-line TypeScript codebase, and grew the host from 10,000 to 1,000,017 lines. Each system was scored on what it recovers: dupehound, and three Claude agents (Haiku 4.5, Sonnet 4.6, Opus 4.8) given the same read-only file tools (glob, grep, read), two runs per model per size. Exact host sizes and the full repository breakdown are in the [writeup](benchmarks/results/2026-06-28-agents-vs-dupehound.md).
+
+<p align="center">
+  <img src="assets/benchmark-scaling.svg" width="820" alt="Duplicate pairs recovered versus repository size. dupehound holds 36 of 39 flat from 10k to 1M lines. Claude Opus falls 22, 13, 0. Claude Haiku falls 20, 16, 6. Claude Sonnet falls 19, 0, then times out.">
+</p>
+
+| pairs recovered (of 39) | 10k LOC | 100k LOC | 1M LOC | time at 1M | cost at 1M |
+|---|--:|--:|--:|--:|--:|
+| dupehound | 36 | 36 | 36 | 0.74 s | $0 |
+| Claude Haiku | 20 | 16 | 6 | 276 s | $0.65 |
+| Claude Opus | 22 | 13 | 0 | 820 s | $2.54 |
+| Claude Sonnet | 19 | 0 | did not finish | did not finish | did not finish |
+
+<sub>Agent figures are the mean of two runs at 1M LOC. Cost is the run's cumulative API-equivalent figure (these runs used a Max subscription, so out-of-pocket was $0); each agent run also processed several million input tokens. "Did not finish" means both Sonnet runs hit the 15-minute, 150-turn budget without returning a result. Per-run figures and run-to-run variance are in the [full writeup](benchmarks/results/2026-06-28-agents-vs-dupehound.md).</sub>
+
+dupehound is the only system that holds its recovery flat as the repository grows, in under a second, for $0, with the same answer on every run. On renamed clones (30 of the 39 pairs) it recovers all 30 at every size, where the agents manage about half at 10,000 lines and near zero at 1,000,017, reading under 1% of files within budget and varying widely between runs (one model scored 0 of 39 and 33 of 39 on the same task). dupehound also reported zero false positives across 15,000+ real functions. Full method, per-type and per-run tables, and limitations: [benchmarks/results/2026-06-28-agents-vs-dupehound.md](benchmarks/results/2026-06-28-agents-vs-dupehound.md).
+
+## How it works
+
+dupehound fingerprints the structure of each function, not its text, so a copy is still matched after every identifier is renamed.
+
 <p align="center">
   <img src="assets/pipeline.svg" alt="The pipeline: discover files, fingerprint every function via tree-sitter parsing and winnowing, match through an inverted index, report" width="900">
 </p>
+
+1. **Discover.** Walk the repo (gitignore-aware) and skip generated files.
+2. **Fingerprint.** Parse every function with tree-sitter, normalize it (identifiers to `ID`, literals to `LIT`, comments dropped), and hash 10-gram windows with winnowing. A renamed copy normalizes to the same fingerprints as its original. Done per function, in parallel (MOSS, SIGMOD 2003).
+3. **Match.** Compare functions by Jaccard similarity through an inverted index, cull boilerplate, and cluster with union-find. No all-pairs scan.
+4. **Report.** A repo-level slop score for `scan`, a chart for `history`, and exit 1 in CI for `check`.
 
 ## Install
 
@@ -89,7 +117,7 @@ A GitHub Actions recipe and a pre-commit setup are in [docs/ci.md](docs/ci.md). 
 `dupehound mcp` runs as an MCP server over stdio, exposing `check` and `scan` as tools an AI coding agent can call itself, mid-edit, to reuse existing code instead of rebuilding it. It stays local and offline (stdio is a local pipe), deterministic, and no AI. Add it to Claude Code with:
 
 ```
-claude mcp add dupehound -- dupehound mcp
+claude mcp add dupehound, dupehound mcp
 ```
 
 The agent then has a `check_duplication` tool (did this change duplicate existing code, and where is the original) and a `scan_duplication` tool (the repo's duplication score and clusters).
