@@ -12,16 +12,18 @@ Stable Rust is all you need. The first build compiles the tree-sitter grammars (
 
 ## Adding a language
 
-The most wanted contribution, and a small one:
+The most wanted contribution, and a small one. The short version:
 
 1. Add the `tree-sitter-<lang>` crate to `Cargo.toml`.
-2. Add a variant to `Lang` in `src/lang/mod.rs` (extension mapping, language fn, query path).
+2. Add a variant to `Lang` in `src/lang/mod.rs` (extension mapping, language fn, query path). Bump the fixed-size arrays (`ALL` and the two query caches) to match the new count.
 3. Write `src/lang/queries/<lang>.scm` capturing `@func`, `@name` and `@body` for the language's function and method forms. `go.scm` is a minimal example. Constrain `@name` to the identifier node (e.g. `name: (identifier) @name`), not a wildcard, or a function can match more than once.
 4. Add a renamed-clone fixture pair to `tests/languages.rs`.
 5. Add the file extension to the "no supported source files" message in `src/walk.rs`.
 6. Add the language to the `Languages:` line in `README.md`.
 
 If `cargo test` passes, including the ABI range check and the query compilation test, you're done.
+
+**Full walkthrough**, with the query details, the array-size gotcha, how to find grammar node names, and troubleshooting: [docs/adding-a-language.md](docs/adding-a-language.md).
 
 ## Ground rules
 
