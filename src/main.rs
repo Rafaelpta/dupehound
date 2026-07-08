@@ -14,6 +14,7 @@ mod report;
 mod scan;
 mod score;
 mod style;
+mod suggest;
 mod walk;
 
 use clap::Parser;

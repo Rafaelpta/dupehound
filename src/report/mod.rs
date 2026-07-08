@@ -6,7 +6,8 @@ use crate::extract::FunctionUnit;
 use crate::score::Score;
 use serde::Serialize;
 
-pub const JSON_SCHEMA_VERSION: u32 = 1;
+// v2: check findings gained an optional `suggestion` (the reuse import line).
+pub const JSON_SCHEMA_VERSION: u32 = 2;
 
 #[derive(Serialize)]
 pub struct Report {

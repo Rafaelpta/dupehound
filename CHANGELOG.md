@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- `check`: alongside each duplicate, print the import that brings the original into scope so you can delete the copy. Derived from the file path for Rust, Python, TypeScript, TSX and JavaScript; other languages print no import. Suggestion only, in text and JSON; dupehound never edits files (#9).
+
 ## 0.1.2 (2026-06-22)
 
 - `dupehound mcp`: run as an MCP server over stdio, exposing `check` and `scan` as tools an AI coding agent can call in its loop to reuse existing code instead of rebuilding it. Local, offline, deterministic, no AI (#30).

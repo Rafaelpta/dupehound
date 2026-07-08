@@ -652,7 +652,7 @@ fn cpp_out_of_line_method_clone_is_detected() {
 #[test]
 fn json_schema_is_versioned() {
     let report = run_scan_json(&PYTHON);
-    assert_eq!(report["schema_version"], 1);
+    assert_eq!(report["schema_version"], 2);
     assert!(report["score"]["slop_percent"].is_number());
     assert!(report["score"]["grade"].is_string());
 }
