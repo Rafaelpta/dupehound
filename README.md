@@ -108,7 +108,10 @@ Languages: TypeScript, TSX, JavaScript, Python, Rust, Go, Java, Ruby, Swift, C, 
 ```
 $ dupehound check --diff main .
 src/api/orders.ts:1 calculateOrderAmount() is a 100% duplicate of src/billing/invoice.ts:1 computeInvoiceTotal() — reuse it
+      import { computeInvoiceTotal } from '../billing/invoice';
 ```
+
+For Rust, Python, TypeScript, TSX and JavaScript, `check` also prints the import that replaces the duplicate. It is a suggestion only; dupehound never edits your files.
 
 A GitHub Actions recipe and a pre-commit setup are in [docs/ci.md](docs/ci.md). <br><br>To make a coding agent reuse code instead of rewriting it, feed `check` back to it from `CLAUDE.md` or `AGENTS.md`; the snippet is there too.
 

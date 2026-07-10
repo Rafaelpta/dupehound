@@ -101,6 +101,11 @@ fn new_renamed_duplicate_fails_with_pointer_to_original() {
     assert!(stdout.contains("src/utils/money.ts"));
     assert!(stdout.contains("formatPrice"));
     assert!(stdout.contains("reuse it"));
+    // The concrete import that replaces the duplicate, relative to the new file.
+    assert!(
+        stdout.contains("import { formatPrice } from '../utils/money';"),
+        "expected reuse import, output: {stdout}"
+    );
 }
 
 #[test]
@@ -178,4 +183,8 @@ fn json_output_lists_findings() {
     let v: serde_json::Value = serde_json::from_str(&stdout).unwrap();
     assert_eq!(v["findings"].as_array().unwrap().len(), 1);
     assert_eq!(v["findings"][0]["original_name"], "formatPrice");
+    assert_eq!(
+        v["findings"][0]["suggestion"],
+        "import { formatPrice } from './utils/money';"
+    );
 }

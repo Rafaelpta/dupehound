@@ -38,6 +38,10 @@ pub struct Finding {
     pub original_file: String,
     pub original_line: u32,
     pub original_name: String,
+    /// The import/use line that brings the original into scope, when the
+    /// language has one derivable from the path. Omitted from JSON when absent.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub suggestion: Option<String>,
 }
 
 /// The result of a check: whether the changeset touched any code at all, and
@@ -173,6 +177,9 @@ pub fn compute(args: &CheckArgs) -> Result<CheckOutcome> {
                     continue;
                 }
             }
+            let suggestion = Lang::from_path(base_path).and_then(|lang| {
+                crate::suggest::import_suggestion(lang, base_path, &base_fn.name, path)
+            });
             findings.push(Finding {
                 file: path.clone(),
                 line: func.start_line,
@@ -181,6 +188,7 @@ pub fn compute(args: &CheckArgs) -> Result<CheckOutcome> {
                 original_file: base_path.clone(),
                 original_line: base_fn.start_line,
                 original_name: base_fn.name.clone(),
+                suggestion,
             });
         }
     }
@@ -222,6 +230,9 @@ pub fn run(args: CheckArgs) -> Result<i32> {
                 f.original_line,
                 f.original_name,
             );
+            if let Some(s) = &f.suggestion {
+                println!("      {s}");
+            }
         }
         eprintln!(
             "\ndupehound check: {} new duplicate{} of existing code",
