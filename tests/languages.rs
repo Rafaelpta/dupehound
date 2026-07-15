@@ -97,6 +97,40 @@ class Invoices
 "#,
 };
 
+const SCALA: Fixture = Fixture {
+    file_a: "Billing.scala",
+    file_b: "Invoices.scala",
+    names: ("computeTotal", "calculateAmount"),
+    src_a: r#"
+def computeTotal(items: List[Map[String, Double]], taxRate: Double): Double = {
+    var subtotal = 0.0
+    for (item <- items) {
+        var price = item("price") * item("qty")
+        if (item.contains("discount")) {
+            price = price * (1.0 - item("discount"))
+        }
+        subtotal += price
+    }
+    val tax = subtotal * taxRate
+    subtotal + tax
+}
+"#,
+    src_b: r#"
+def calculateAmount(rows: List[Map[String, Double]], vat: Double): Double = {
+    var baseAmount = 0.0
+    for (row <- rows) {
+        var cost = row("price") * row("qty")
+        if (row.contains("discount")) {
+            cost = cost * (1.0 - row("discount"))
+        }
+        baseAmount += cost
+    }
+    val extra = baseAmount * vat
+    baseAmount + extra
+}
+"#,
+};
+
 const KOTLIN: Fixture = Fixture {
     file_a: "Billing.kt",
     file_b: "Invoices.kt",
@@ -638,6 +672,10 @@ fn csharp_renamed_clone_is_detected() {
 #[test]
 fn kotlin_renamed_clone_is_detected() {
     assert_clone_pair_detected(&KOTLIN);
+}
+#[test]
+fn scala_renamed_clone_is_detected() {
+    assert_clone_pair_detected(&SCALA);
 }
 #[test]
 fn c_pointer_return_clone_is_detected() {

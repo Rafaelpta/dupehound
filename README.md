@@ -91,7 +91,7 @@ The slop score is the percentage of code you could delete if every cluster kept 
 <li><code>--include-classes</code> flags C# classes with near-duplicate property and method signatures (experimental, opt-in, never affects the slop score)</li>
 </ul>
 
-Languages: TypeScript, TSX, JavaScript, Python, Rust, Go, Java, Ruby, Swift, C, C++, PHP, C#, Kotlin.
+Languages: TypeScript, TSX, JavaScript, Python, Rust, Go, Java, Ruby, Swift, C, C++, PHP, C#, Kotlin, Scala.
 
 ### `history`
 
