@@ -3,9 +3,11 @@
 
 use crate::cli::ScanArgs;
 use crate::cluster::{Cluster, build_clusters};
-use crate::config::{Config, DEFAULT_SCAN_THRESHOLD, MIN_SHARED_PREFILTER, TestPolicy};
+use crate::config::{
+    Config, DEFAULT_CONTAINMENT_THRESHOLD, DEFAULT_SCAN_THRESHOLD, MIN_SHARED_PREFILTER, TestPolicy,
+};
 use crate::extract::{FunctionUnit, analyze_source};
-use crate::index::find_pairs;
+use crate::index::{find_containment, find_pairs};
 use crate::report::{Report, Stats, build, terminal};
 use crate::score::slop_score;
 use crate::walk::{DiscoveredFile, discover, load};
@@ -25,6 +27,7 @@ pub struct ScanOutput {
 pub fn run(args: ScanArgs) -> Result<i32> {
     let mut config = Config::from_common(&args.common, DEFAULT_SCAN_THRESHOLD);
     config.include_classes = args.include_classes;
+    config.containment = args.containment;
     let output = scan_path(&args.path, &config)?;
 
     if let Some(cluster_id) = args.explain {
@@ -38,6 +41,9 @@ pub fn run(args: ScanArgs) -> Result<i32> {
         print!("{}", terminal::render(&output.report, args.all));
         if config.include_classes {
             print!("{}", terminal::render_shapes(&output.report));
+        }
+        if config.containment {
+            print!("{}", terminal::render_containment(&output.report));
         }
     }
 
@@ -167,6 +173,19 @@ pub fn scan_path(root: &Path, config: &Config) -> Result<ScanOutput> {
     if config.include_classes {
         report.class_shapes =
             crate::report::clusters_out(&shape_clusters, &shape_functions, &file_names);
+    }
+
+    // Experimental containment track: runs on the post-cull fingerprints left
+    // by find_pairs, surfacing small functions copied into a larger one that
+    // Jaccard alone misses. Never folded into the slop score.
+    if config.containment {
+        let pairs = find_containment(
+            &functions,
+            config.threshold,
+            DEFAULT_CONTAINMENT_THRESHOLD,
+            MIN_SHARED_PREFILTER,
+        );
+        report.containment = crate::report::containment_out(&pairs, &functions, &file_names);
     }
 
     Ok(ScanOutput {

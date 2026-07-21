@@ -12,6 +12,12 @@ pub const DEFAULT_CHECK_THRESHOLD: f64 = 0.85;
 /// Minimum raw shared fingerprints before we bother computing exact Jaccard.
 pub const MIN_SHARED_PREFILTER: u32 = 3;
 
+/// How much of the smaller function must be covered by the larger one for the
+/// experimental `--containment` track to report it. Stricter than the Jaccard
+/// threshold on purpose: containment ignores the larger body, so a loose bar
+/// here would flag any small function that happens to share a few fingerprints.
+pub const DEFAULT_CONTAINMENT_THRESHOLD: f64 = 0.90;
+
 /// Files larger than this are skipped (almost certainly generated/minified).
 pub const MAX_FILE_BYTES: u64 = 2 * 1024 * 1024;
 
@@ -35,6 +41,9 @@ pub struct Config {
     pub json: bool,
     /// Experimental: also run the C# "class shape" track (scan only).
     pub include_classes: bool,
+    /// Experimental: also report small functions copied into larger ones
+    /// (scan only), which Jaccard alone misses.
+    pub containment: bool,
 }
 
 impl Config {
@@ -57,6 +66,7 @@ impl Config {
             tests,
             json: common.json,
             include_classes: false,
+            containment: false,
         }
     }
 }

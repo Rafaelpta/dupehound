@@ -102,6 +102,65 @@ pub fn render_shapes(report: &Report) -> String {
     out
 }
 
+/// Experimental `--containment` section, printed after the normal report.
+/// Lists small functions that are almost entirely copied into a larger one —
+/// duplication Jaccard misses because the larger body inflates the union. This
+/// is a separate finding from the clusters and is not part of the score.
+pub fn render_containment(report: &Report) -> String {
+    let mut out = String::new();
+    out.push('\n');
+    out.push_str(&bold("  CONTAINMENT  "));
+    out.push_str(&dim("(experimental · --containment)\n"));
+    out.push_str(&dim(
+        "  small functions copied into a larger one, which the score misses\n\n",
+    ));
+
+    if report.containment.is_empty() {
+        out.push_str("  No contained functions found.\n\n");
+        return out;
+    }
+
+    let loc = |file: &str, line: u32| format!("{file}:{line}");
+    let loc_width = report
+        .containment
+        .iter()
+        .flat_map(|c| {
+            [
+                loc(&c.contained.file, c.contained.start_line).len(),
+                loc(&c.container.file, c.container.start_line).len(),
+            ]
+        })
+        .max()
+        .unwrap_or(0)
+        .min(58);
+
+    for c in &report.containment {
+        let pct = format!("{:.0}%", c.containment * 100.0);
+        let title = format!(
+            "● {} ({} lines) is {} inside a larger function",
+            c.contained.name, c.contained.lines, pct,
+        );
+        out.push_str(&format!("  {}\n", bold(&title)));
+        let small_loc = truncate_left(&loc(&c.contained.file, c.contained.start_line), loc_width);
+        let large_loc = truncate_left(&loc(&c.container.file, c.container.start_line), loc_width);
+        out.push_str(&format!(
+            "    {} {small_loc:<loc_width$}  {}\n",
+            yellow("↳"),
+            dim("copied fragment"),
+        ));
+        out.push_str(&format!(
+            "      {large_loc:<loc_width$}  {}  {}\n",
+            c.container.name,
+            dim(&format!("{} lines", c.container.lines)),
+        ));
+        out.push('\n');
+    }
+    out.push_str(&dim(
+        "  experimental: containment ignores the larger body, so review before deleting\n",
+    ));
+    out
+}
+
 fn header(out: &mut String, r: &Report) {
     out.push('\n');
     out.push_str(&dim(&format!(
