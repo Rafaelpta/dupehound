@@ -20,6 +20,10 @@ pub struct Report {
     /// JSON when empty so the default output is byte-for-byte unchanged.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub class_shapes: Vec<ClusterOut>,
+    /// Experimental containment findings (`--containment`): a small function
+    /// copied into a larger one. Omitted from JSON when empty.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub containment: Vec<ContainmentOut>,
 }
 
 #[derive(Serialize)]
@@ -72,6 +76,76 @@ pub struct MemberOut {
     pub similarity: f64,
     pub representative: bool,
     pub test: bool,
+}
+
+#[derive(Serialize)]
+pub struct ContainmentOut {
+    /// The smaller function, mostly contained in `container`.
+    pub contained: ContainmentSide,
+    /// The larger function it was copied into.
+    pub container: ContainmentSide,
+    /// Fraction of the contained function the container covers (0.0-1.0).
+    pub containment: f64,
+}
+
+#[derive(Serialize)]
+pub struct ContainmentSide {
+    pub file: String,
+    pub name: String,
+    pub start_line: u32,
+    pub end_line: u32,
+    pub lines: u32,
+}
+
+/// Map containment pairs to their serializable form. Keeps the strongest
+/// container per contained function so one copied helper is reported once, and
+/// sorts by the contained function's size (most lines you could extract first).
+pub fn containment_out(
+    pairs: &[crate::index::ContainmentPair],
+    functions: &[FunctionUnit],
+    file_names: &[String],
+) -> Vec<ContainmentOut> {
+    // Best (highest containment) container per contained function.
+    let mut best: rustc_hash::FxHashMap<u32, &crate::index::ContainmentPair> =
+        rustc_hash::FxHashMap::default();
+    for p in pairs {
+        best.entry(p.small)
+            .and_modify(|cur| {
+                if p.containment > cur.containment {
+                    *cur = p;
+                }
+            })
+            .or_insert(p);
+    }
+
+    let side = |id: u32| {
+        let f = &functions[id as usize];
+        ContainmentSide {
+            file: file_names[f.file as usize].clone(),
+            name: f.name.clone(),
+            start_line: f.start_line,
+            end_line: f.end_line,
+            lines: f.sig_lines,
+        }
+    };
+
+    let mut out: Vec<ContainmentOut> = best
+        .values()
+        .map(|p| ContainmentOut {
+            contained: side(p.small),
+            container: side(p.large),
+            containment: p.containment,
+        })
+        .collect();
+    out.sort_by(|a, b| {
+        b.contained
+            .lines
+            .cmp(&a.contained.lines)
+            .then(b.containment.total_cmp(&a.containment))
+            .then(a.contained.file.cmp(&b.contained.file))
+            .then(a.contained.start_line.cmp(&b.contained.start_line))
+    });
+    out
 }
 
 /// Map internal clusters to their serializable form. Shared by the function
@@ -147,5 +221,6 @@ pub fn build(
         },
         clusters: clusters_out,
         class_shapes: Vec::new(),
+        containment: Vec::new(),
     }
 }

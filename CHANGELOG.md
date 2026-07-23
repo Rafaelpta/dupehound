@@ -3,6 +3,7 @@
 ## Unreleased
 
 - `check`: alongside each duplicate, print the import that brings the original into scope so you can delete the copy. Derived from the file path for Rust, Python, TypeScript, TSX and JavaScript; other languages print no import. Suggestion only, in text and JSON; dupehound never edits files (#9).
+- `scan --containment`: experimental, opt-in detection of a small function copied into a larger one. Jaccard misses this because the larger body inflates the union; containment measures the shared fingerprints against the smaller function alone. Separate from the clusters and never affects the slop score (#7).
 
 ## 0.1.2 (2026-06-22)
 

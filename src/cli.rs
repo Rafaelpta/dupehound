@@ -88,6 +88,11 @@ pub struct ScanArgs {
     /// are near-duplicates (separate from the function clusters and the score)
     #[arg(long)]
     pub include_classes: bool,
+
+    /// Experimental: also report small functions copied into a larger one,
+    /// which the Jaccard score misses (separate from the clusters and the score)
+    #[arg(long)]
+    pub containment: bool,
 }
 
 #[derive(Args)]
