@@ -58,17 +58,25 @@ dupehound fingerprints the structure of each function, not its text, so a copy i
 
 ## Install
 
-Prebuilt binaries for macOS, Linux and Windows are on the [releases page](https://github.com/Rafaelpta/dupehound/releases), or:
+macOS or Linux, no dependencies:
+
+```
+curl -fsSL https://raw.githubusercontent.com/Rafaelpta/dupehound/main/install.sh | sh
+```
+
+With Homebrew:
+
+```
+brew install rafaelpta/dupehound/dupehound
+```
+
+With cargo:
 
 ```
 cargo install dupehound
 ```
 
-On macOS or Linux with Homebrew:
-
-```
-brew install rafaelpta/dupehound/dupehound
-```
+Prebuilt binaries for macOS, Linux and Windows are on the [releases page](https://github.com/Rafaelpta/dupehound/releases).
 
 `history` and `check` require `git` on PATH. `scan` works on any directory.
 
