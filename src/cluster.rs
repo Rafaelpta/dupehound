@@ -18,9 +18,11 @@ pub struct Cluster {
     pub deletable_lines: u32,
     /// True when every member is test code.
     pub test_only: bool,
-    /// True when every member is a Rust trait-impl method (`From`, `Display`,
-    /// ...). Like `test_only`, these are kept out of the slop score: each impl
-    /// is a distinct, required implementation, not deletable duplication.
+    /// True when every member's name is required to match its siblings by
+    /// construction — a Rust trait-impl method (`From`, `Display`, ...) or a
+    /// Clojure `defmethod` dispatch branch. Like `test_only`, these are kept
+    /// out of the slop score: each is a distinct, required implementation,
+    /// not deletable duplication.
     pub trait_impl_only: bool,
 }
 
