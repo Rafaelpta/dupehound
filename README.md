@@ -90,7 +90,7 @@ Prebuilt binaries for macOS, Linux and Windows are on the [releases page](https:
   <img src="assets/scan.png" alt="dupehound scan on the vscode source tree: 2.8 percent slop, grade A, listing the top duplicate clusters" width="880">
 </p>
 
-The slop score is the percentage of code you could delete if every cluster kept only one copy; the largest copy is exempt and test files are excluded by default, since table-driven tests are repetitive by design. On Rust, trait-impl methods (`From`, `Display`, ...) are also kept out of the score, since each impl is required and cannot be merged.
+The slop score is the percentage of code you could delete if every cluster kept only one copy; the largest copy is exempt and test files are excluded by default, since table-driven tests are repetitive by design. Methods whose name is required to match their siblings — Rust trait-impl methods (`From`, `Display`, ...) and Clojure `defmethod` dispatch branches — are also kept out of the score, since each is required and cannot be merged.
 
 <ul>
 <li><code>--explain N</code> prints a cluster's code as proof</li>
@@ -100,7 +100,7 @@ The slop score is the percentage of code you could delete if every cluster kept 
 <li><code>--containment</code> flags a small function copied into a larger one, which the Jaccard score misses because the larger body inflates the union (experimental, opt-in, never affects the slop score)</li>
 </ul>
 
-Languages: TypeScript, TSX, JavaScript, Python, Rust, Go, Java, Ruby, Swift, C, C++, PHP, C#, Kotlin, Scala.
+Languages: TypeScript, TSX, JavaScript, Python, Rust, Go, Java, Ruby, Swift, C, C++, PHP, C#, Kotlin, Scala, Clojure.
 
 ### `history`
 

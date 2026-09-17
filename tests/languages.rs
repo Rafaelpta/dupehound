@@ -570,6 +570,34 @@ pub fn chunk_entries(text: &str, delim: char) -> Vec<String> {
 "#,
 };
 
+const CLOJURE: Fixture = Fixture {
+    file_a: "billing.clj",
+    file_b: "invoices.clj",
+    names: ("compute-total", "calculate-amount"),
+    src_a: r#"
+(defn compute-total [items tax-rate]
+  (let [subtotal (reduce (fn [acc item]
+                            (let [price (* (:price item) (:qty item))]
+                              (if (:discount item)
+                                (+ acc (* price (- 1.0 (:discount item))))
+                                (+ acc price))))
+                          0.0
+                          items)]
+    (+ subtotal (* subtotal tax-rate))))
+"#,
+    src_b: r#"
+(defn calculate-amount [rows vat]
+  (let [base-amount (reduce (fn [acc row]
+                               (let [cost (* (:price row) (:qty row))]
+                                 (if (:discount row)
+                                   (+ acc (* cost (- 1.0 (:discount row))))
+                                   (+ acc cost))))
+                             0.0
+                             rows)]
+    (+ base-amount (* base-amount vat))))
+"#,
+};
+
 fn run_scan_json(fixture: &Fixture) -> serde_json::Value {
     let dir = tempfile::tempdir().unwrap();
     std::fs::write(dir.path().join(fixture.file_a), fixture.src_a).unwrap();
@@ -650,6 +678,11 @@ fn ruby_renamed_clone_is_detected() {
 #[test]
 fn rust_renamed_clone_is_detected() {
     assert_clone_pair_detected(&RUST);
+}
+
+#[test]
+fn clojure_renamed_clone_is_detected() {
+    assert_clone_pair_detected(&CLOJURE);
 }
 
 #[test]

@@ -55,8 +55,9 @@ pub struct ClusterOut {
     pub similarity: f64,
     pub deletable_lines: u32,
     pub test_only: bool,
-    /// Rust trait-impl look-alikes (`From`/`Display`/...), kept out of the
-    /// slop score. Omitted when false so existing output is unchanged.
+    /// Required-name look-alikes (Rust trait impls, Clojure `defmethod`
+    /// dispatch branches), kept out of the slop score. Omitted when false so
+    /// existing output is unchanged.
     #[serde(default, skip_serializing_if = "is_false")]
     pub trait_impl_only: bool,
     pub members: Vec<MemberOut>,

@@ -30,9 +30,12 @@ pub struct FunctionUnit {
     /// Sorted, distinct winnowing fingerprints of the body.
     pub fingerprints: Vec<u64>,
     pub is_test: bool,
-    /// Rust only: a method inside an `impl Trait for Type` block. Every impl
-    /// of the same trait shares the method name (`from`, `fmt`, ...) by
-    /// definition, so these are near-duplicates that cannot be merged.
+    /// A method whose name is shared with its near-duplicate siblings by
+    /// construction, so the sharing is required rather than accidental and
+    /// the cluster can't be merged away: a Rust method inside an `impl
+    /// Trait for Type` block (every impl of the same trait shares the
+    /// method name — `from`, `fmt`, ...) or a Clojure `defmethod` dispatch
+    /// branch (every branch of the same multimethod shares its name).
     pub is_trait_impl_method: bool,
 }
 
@@ -88,6 +91,47 @@ fn is_rust_trait_impl_method(func: Node) -> bool {
     impl_item.kind() == "impl_item" && impl_item.child_by_field_name("trait").is_some()
 }
 
+/// The text of `list`'s head symbol, if its first value child is a plain
+/// symbol — the macro/function name a Clojure list form starts with, e.g.
+/// "defmethod" or "defrecord".
+fn clojure_list_head_text<'a>(list: Node, src: &'a str) -> Option<&'a str> {
+    let head = list.child_by_field_name("value")?;
+    if head.kind() != "sym_lit" {
+        return None;
+    }
+    head.child_by_field_name("name")?
+        .utf8_text(src.as_bytes())
+        .ok()
+}
+
+/// True if `func` is a Clojure `defmethod` form. Every defmethod for the
+/// same multimethod shares its `.name` (the multimethod name) by
+/// construction — one form per dispatch value — so near-duplicate dispatch
+/// branches can't be merged away. Same situation as `is_rust_trait_impl_method`
+/// above, reusing the same flag rather than inventing a Clojure-specific one.
+fn is_clojure_defmethod(func: Node, src: &str) -> bool {
+    clojure_list_head_text(func, src) == Some("defmethod")
+}
+
+/// True if `func`'s immediate parent is a defrecord/deftype/extend-type/
+/// extend-protocol/reify form -- a protocol method implementation, whose
+/// name is shared with every other type's implementation of the same
+/// method by construction. Same reasoning as `is_rust_trait_impl_method`
+/// and `is_clojure_defmethod`: reuses `is_trait_impl_method` rather than a
+/// third flag.
+fn is_clojure_protocol_method(func: Node, src: &str) -> bool {
+    let Some(parent) = func.parent() else {
+        return false;
+    };
+    if parent.kind() != "list_lit" {
+        return false;
+    }
+    matches!(
+        clojure_list_head_text(parent, src),
+        Some("defrecord" | "deftype" | "extend-type" | "extend-protocol" | "reify")
+    )
+}
+
 /// Extract and fingerprint every function in `src`. `file` is the caller's
 /// file id, stamped on each unit. `file_is_test` marks all units as test
 /// code; Rust additionally marks functions inside `#[cfg(test)]` regions.
@@ -138,7 +182,7 @@ pub fn analyze_source(
         let (Some(body), Some(func)) = (body, func) else {
             continue;
         };
-        let normalized = normalize(body);
+        let normalized = normalize(body, src.as_bytes());
         if normalized.codes.len() < min_tokens {
             continue;
         }
@@ -151,7 +195,13 @@ pub fn analyze_source(
             .unwrap_or("<anonymous>")
             .to_string();
         let is_test = file_is_test || test_boundary.is_some_and(|b| func.start_byte() as u32 >= b);
-        let is_trait_impl_method = lang == Lang::Rust && is_rust_trait_impl_method(func);
+        let is_trait_impl_method = match lang {
+            Lang::Rust => is_rust_trait_impl_method(func),
+            Lang::Clojure => {
+                is_clojure_defmethod(func, src) || is_clojure_protocol_method(func, src)
+            }
+            _ => false,
+        };
         functions.push(FunctionUnit {
             file,
             lang,
@@ -439,6 +489,316 @@ function describeUser(user: { name: string; age: number }): string {
         let fa1 = analyze_source(0, Lang::Typescript, without, 5, false).unwrap();
         let fa2 = analyze_source(0, Lang::Typescript, with, 5, false).unwrap();
         assert_eq!(fa1.functions[0].fingerprints, fa2.functions[0].fingerprints);
+    }
+
+    // Clojure's grammar represents operators, special forms, macros, and
+    // ordinary identifiers with the same `sym_name` node kind — unlike every
+    // other supported grammar, which gives keywords/operators their own
+    // distinct kinds separate from `identifier`. These two tests are the
+    // real regression guard for that: the TypeScript pair above proves
+    // normalization's core invariant once; this proves it still holds once
+    // a language can't lean on kind-name alone to tell "+" from "x".
+    const CLOJURE_PAIR: &str = r#"
+(defn sum-items [items factor]
+  (let [total (reduce (fn [acc item]
+                         (let [value (* (:price item) (:qty item))]
+                           (if (:discount item)
+                             (+ acc (* value (- 1.0 (:discount item))))
+                             (+ acc value))))
+                       0.0
+                       items)]
+    (+ total (* total factor))))
+
+(defn combine-totals [rows scale]
+  (let [sum (reduce (fn [acc row]
+                       (let [amount (* (:price row) (:qty row))]
+                         (if (:discount row)
+                           (+ acc (* amount (- 1.0 (:discount row))))
+                           (+ acc amount))))
+                     0.0
+                     rows)]
+    (+ sum (* sum scale))))
+"#;
+
+    #[test]
+    fn clojure_renamed_clone_has_identical_fingerprints() {
+        // Same shape, every local variable/parameter renamed, operators and
+        // special forms (defn, let, reduce, fn, if, +, *, -) untouched — a
+        // textbook type-2 clone.
+        let fa = analyze_source(0, Lang::Clojure, CLOJURE_PAIR, 10, false).unwrap();
+        assert_eq!(fa.functions.len(), 2);
+        assert_eq!(fa.functions[0].fingerprints, fa.functions[1].fingerprints);
+    }
+
+    #[test]
+    fn clojure_different_logic_does_not_match() {
+        // Same nesting shape, same literal-type pattern, but different verbs
+        // throughout (max/when/min/- instead of */if/+). Before TokenClass::Op
+        // exists, every symbol collapses to the same code regardless of kind,
+        // so this is expected to FAIL — it's the concrete proof the fix does
+        // what it claims once it lands.
+        let src = r#"
+(defn sum-items [items factor]
+  (let [total (reduce (fn [acc item]
+                         (let [value (* (:price item) (:qty item))]
+                           (if (:discount item)
+                             (+ acc (* value (- 1.0 (:discount item))))
+                             (+ acc value))))
+                       0.0
+                       items)]
+    (+ total (* total factor))))
+
+(defn max-items [items factor]
+  (let [total (reduce (fn [acc item]
+                         (let [value (max (:price item) (:qty item))]
+                           (when (:discount item)
+                             (- acc (min value (/ 1.0 (:discount item)))))
+                           (- acc value)))
+                       0.0
+                       items)]
+    (- total (/ total factor))))
+"#;
+        let fa = analyze_source(0, Lang::Clojure, src, 10, false).unwrap();
+        assert_eq!(fa.functions.len(), 2);
+        let j = crate::fingerprint::jaccard(
+            &fa.functions[0].fingerprints,
+            &fa.functions[1].fingerprints,
+        );
+        assert!(j < 0.3, "unrelated functions scored {j}");
+    }
+
+    #[test]
+    fn clojure_deftest_forms_are_captured() {
+        // clojure.test's `deftest` isn't literally `defn`, so it needs its
+        // own arm in the query's #any-of? list — without it, every deftest
+        // in a real codebase's test suite is invisible to dupehound.
+        let src = r#"
+(defn add-one [x]
+  (+ x 1))
+
+(deftest add-one-test
+  (testing "adds one"
+    (is (= 2 (add-one 1)))
+    (is (= 3 (add-one 2)))))
+"#;
+        let fa = analyze_source(0, Lang::Clojure, src, 5, false).unwrap();
+        let names: Vec<&str> = fa.functions.iter().map(|f| f.name.as_str()).collect();
+        assert_eq!(names, vec!["add-one", "add-one-test"]);
+    }
+
+    #[test]
+    fn clojure_def_bound_fn_is_captured() {
+        // (def name (fn [args] ...)) is the def+fn idiom, equivalent to
+        // (defn name [args] ...) -- mirrors javascript.scm's
+        // variable_declarator pattern for `const name = () => {...}`.
+        // len() == 1, not 2: dupehound intentionally has no bare/anonymous
+        // -fn pattern (same javascript.scm precedent -- arrow functions are
+        // only matched when bound to a name), so the inner (fn ...) node
+        // is captured exactly once, by this pattern alone.
+        let src = r#"
+(def add-one (fn [x]
+  (+ x 1)))
+"#;
+        let fa = analyze_source(0, Lang::Clojure, src, 1, false).unwrap();
+        assert_eq!(fa.functions.len(), 1);
+        assert_eq!(fa.functions[0].name, "add-one");
+    }
+
+    #[test]
+    fn clojure_plain_def_is_not_a_function() {
+        // (def x 5) and (def config {...}) bind data, not a function value
+        // -- only a def whose value is (fn ...) should match.
+        let src = r#"
+(def just-data
+  {:a 1 :b 2})
+
+(def aliased +)
+"#;
+        let fa = analyze_source(0, Lang::Clojure, src, 1, false).unwrap();
+        assert!(
+            fa.functions.is_empty(),
+            "expected no functions, got {:?}",
+            fa.functions.iter().map(|f| &f.name).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn clojure_def_bound_fn_renamed_clone_has_identical_fingerprints() {
+        // Two def+fn functions, same shape, renamed variable/parameter --
+        // the def+fn idiom needs the same type-2-clone guarantee defn
+        // already has. (defn and def+fn are NOT expected to match each
+        // other: def+fn's body is just the inner (fn ...) node, so it has
+        // no equivalent to defn's own leading "defn"/name tokens -- they're
+        // different shapes, not the same stream.)
+        let src = r#"
+(def add-one (fn [x]
+  (+ x 1)))
+
+(def increment (fn [y]
+  (+ y 1)))
+"#;
+        let fa = analyze_source(0, Lang::Clojure, src, 1, false).unwrap();
+        assert_eq!(fa.functions.len(), 2);
+        assert_eq!(fa.functions[0].fingerprints, fa.functions[1].fingerprints);
+    }
+
+    #[test]
+    fn clojure_defmulti_and_defmethod_are_captured() {
+        let src = r#"
+(defmulti area (fn [shape] (:type shape)))
+
+(defmethod area :circle [shape]
+  (* Math/PI (:radius shape) (:radius shape)))
+
+(defmethod area :square [shape]
+  (* (:side shape) (:side shape)))
+"#;
+        let fa = analyze_source(0, Lang::Clojure, src, 1, false).unwrap();
+        let names: Vec<&str> = fa.functions.iter().map(|f| f.name.as_str()).collect();
+        assert_eq!(names, vec!["area", "area", "area"]);
+    }
+
+    #[test]
+    fn clojure_defmethod_is_flagged_like_a_trait_impl_method() {
+        // Mirrors rust_trait_impl_methods_are_flagged below: a plain defn
+        // and a defmethod dispatch branch. Only the defmethod is flagged --
+        // every dispatch branch of the same multimethod shares its name by
+        // construction, so near-duplicate branches can't be merged away,
+        // the same reasoning as a Rust trait impl.
+        let src = r#"
+(defn plain-area [shape]
+  (* (:side shape) (:side shape)))
+
+(defmethod area :circle [shape]
+  (* Math/PI (:radius shape) (:radius shape)))
+"#;
+        let fa = analyze_source(0, Lang::Clojure, src, 1, false).unwrap();
+        let plain = fa
+            .functions
+            .iter()
+            .find(|f| f.name == "plain-area")
+            .unwrap();
+        let dispatch = fa.functions.iter().find(|f| f.name == "area").unwrap();
+        assert!(!plain.is_trait_impl_method);
+        assert!(dispatch.is_trait_impl_method);
+    }
+
+    #[test]
+    fn clojure_protocol_methods_are_captured() {
+        let src = r#"
+(defrecord DefaultShellExecutor []
+  ShellExecutor
+
+  (run-cmd [_this cmd args opts]
+    (assoc opts :cmd cmd)))
+"#;
+        let fa = analyze_source(0, Lang::Clojure, src, 1, false).unwrap();
+        assert_eq!(fa.functions.len(), 1);
+        assert_eq!(fa.functions[0].name, "run-cmd");
+    }
+
+    #[test]
+    fn clojure_protocol_method_renamed_clone_has_identical_fingerprints() {
+        // Two records implementing the same protocol method, same logic,
+        // renamed locals only -- the standard type-2-clone guarantee every
+        // other captured Clojure form already has.
+        let src = r#"
+(defrecord DefaultShellExecutor []
+  ShellExecutor
+
+  (run-cmd [_this cmd args opts]
+    (let [env-map (get opts :env {})]
+      (assoc opts :cmd cmd :env env-map))))
+
+(defrecord LoggingShellExecutor []
+  ShellExecutor
+
+  (run-cmd [_this command arguments options]
+    (let [env-vars (get options :env {})]
+      (assoc options :cmd command :env env-vars))))
+"#;
+        let fa = analyze_source(0, Lang::Clojure, src, 1, false).unwrap();
+        assert_eq!(fa.functions.len(), 2);
+        assert_eq!(fa.functions[0].fingerprints, fa.functions[1].fingerprints);
+    }
+
+    #[test]
+    fn clojure_protocol_method_is_flagged_like_a_trait_impl_method() {
+        // Mirrors clojure_defmethod_is_flagged_like_a_trait_impl_method: a
+        // plain defn isn't flagged, a protocol method implementation is --
+        // its name is shared with every other type's implementation of the
+        // same method by construction.
+        let src = r#"
+(defn plain-run [cmd]
+  (assoc {} :cmd cmd))
+
+(defrecord DefaultShellExecutor []
+  ShellExecutor
+
+  (run-cmd [_this cmd args opts]
+    (assoc opts :cmd cmd)))
+"#;
+        let fa = analyze_source(0, Lang::Clojure, src, 1, false).unwrap();
+        let plain = fa.functions.iter().find(|f| f.name == "plain-run").unwrap();
+        let method = fa.functions.iter().find(|f| f.name == "run-cmd").unwrap();
+        assert!(!plain.is_trait_impl_method);
+        assert!(method.is_trait_impl_method);
+    }
+
+    #[test]
+    fn clojure_vector_arg_call_is_not_a_protocol_method() {
+        // The concrete false-positive guard: (zipmap [:a :b] [1 2]) is
+        // shaped exactly like a protocol method -- symbol, then a vector --
+        // but it's nested inside caller's own body, not a direct child of a
+        // defrecord/deftype/.../reify form, so it must not match.
+        let src = r#"
+(defn caller []
+  (zipmap [:a :b] [1 2]))
+"#;
+        let fa = analyze_source(0, Lang::Clojure, src, 1, false).unwrap();
+        let names: Vec<&str> = fa.functions.iter().map(|f| f.name.as_str()).collect();
+        assert_eq!(names, vec!["caller"]);
+    }
+
+    #[test]
+    fn clojure_extend_type_extend_protocol_and_reify_methods_are_captured() {
+        let src = r#"
+(extend-type MyType
+  ShellExecutor
+  (run-cmd [this cmd args opts]
+    (do-thing cmd)))
+
+(extend-protocol ShellExecutor
+  AnotherType
+  (run-cmd [this cmd args opts]
+    (do-thing cmd))
+  ThirdType
+  (run-cmd [this cmd args opts]
+    (do-other cmd)))
+
+(defn make-inline-executor []
+  (reify ShellExecutor
+    (run-cmd [this cmd args opts]
+      (do-thing cmd))))
+"#;
+        let fa = analyze_source(0, Lang::Clojure, src, 1, false).unwrap();
+        // extend-type: 1 run-cmd, extend-protocol: 2 (AnotherType + ThirdType),
+        // reify: 1 run-cmd -- plus make-inline-executor itself, the ordinary
+        // defn that wraps the reify expression.
+        let run_cmds: Vec<_> = fa
+            .functions
+            .iter()
+            .filter(|f| f.name == "run-cmd")
+            .collect();
+        assert_eq!(run_cmds.len(), 4);
+        assert!(run_cmds.iter().all(|f| f.is_trait_impl_method));
+        let wrapper = fa
+            .functions
+            .iter()
+            .find(|f| f.name == "make-inline-executor")
+            .unwrap();
+        assert!(!wrapper.is_trait_impl_method);
+        assert_eq!(fa.functions.len(), 5);
     }
 
     const CS_CLASSES: &str = r#"
