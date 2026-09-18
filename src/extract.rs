@@ -34,8 +34,11 @@ pub struct FunctionUnit {
     /// construction, so the sharing is required rather than accidental and
     /// the cluster can't be merged away: a Rust method inside an `impl
     /// Trait for Type` block (every impl of the same trait shares the
-    /// method name — `from`, `fmt`, ...) or a Clojure `defmethod` dispatch
-    /// branch (every branch of the same multimethod shares its name).
+    /// method name — `from`, `fmt`, ...), a Clojure `defmethod` dispatch
+    /// branch (every branch of the same multimethod shares its name), or a
+    /// Java method annotated `@Override` (every implementation of the same
+    /// interface/superclass method shares its name and is required by the
+    /// contract, e.g. `equals`/`hashCode`/`toString`).
     pub is_trait_impl_method: bool,
 }
 
@@ -89,6 +92,26 @@ fn is_rust_trait_impl_method(func: Node) -> bool {
         return false;
     };
     impl_item.kind() == "impl_item" && impl_item.child_by_field_name("trait").is_some()
+}
+
+/// True if `func` (a Java `method_declaration`) carries an `@Override`
+/// annotation. Every override of the same interface/superclass method
+/// shares its name by construction — `equals`, `hashCode`, `toString`,
+/// visitor dispatch methods, ... — so near-duplicate overrides across
+/// unrelated classes can't be merged away. Same reasoning as
+/// `is_rust_trait_impl_method`, reusing the same flag rather than inventing
+/// a Java-specific one.
+fn is_java_override_method(func: Node, src: &str) -> bool {
+    let Some(modifiers) = func.child(0).filter(|c| c.kind() == "modifiers") else {
+        return false;
+    };
+    let mut cursor = modifiers.walk();
+    modifiers.children(&mut cursor).any(|m| {
+        matches!(m.kind(), "marker_annotation" | "annotation")
+            && m.child_by_field_name("name")
+                .and_then(|n| n.utf8_text(src.as_bytes()).ok())
+                == Some("Override")
+    })
 }
 
 /// The text of `list`'s head symbol, if its first value child is a plain
@@ -200,6 +223,7 @@ pub fn analyze_source(
             Lang::Clojure => {
                 is_clojure_defmethod(func, src) || is_clojure_protocol_method(func, src)
             }
+            Lang::Java => is_java_override_method(func, src),
             _ => false,
         };
         functions.push(FunctionUnit {
@@ -910,6 +934,19 @@ public class Primary(Graph graph) {
         let fmt = fa.functions.iter().find(|f| f.name == "fmt").unwrap();
         let area = fa.functions.iter().find(|f| f.name == "area").unwrap();
         assert!(fmt.is_trait_impl_method);
+        assert!(!area.is_trait_impl_method);
+    }
+
+    #[test]
+    fn java_override_methods_are_flagged() {
+        // `equals` carries @Override (required by Object's contract); `area`
+        // does not and is normal, scorable code.
+        let src = "class S {\n    int w, h;\n\n    @Override\n    public boolean equals(Object o) {\n        if (this == o) return true;\n        if (o == null) return false;\n        return w == ((S) o).w && h == ((S) o).h;\n    }\n\n    int area() {\n        int a = w * h;\n        int b = a + 1;\n        return a + b;\n    }\n}\n";
+        let fa = analyze_source(0, Lang::Java, src, 5, false).unwrap();
+        assert_eq!(fa.functions.len(), 2);
+        let equals = fa.functions.iter().find(|f| f.name == "equals").unwrap();
+        let area = fa.functions.iter().find(|f| f.name == "area").unwrap();
+        assert!(equals.is_trait_impl_method);
         assert!(!area.is_trait_impl_method);
     }
 }
