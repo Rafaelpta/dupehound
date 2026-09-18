@@ -163,7 +163,14 @@ pub fn analyze_source(
     let body_idx = query.capture_index_for_name("body");
     let func_idx = query.capture_index_for_name("func");
 
-    let mut functions = Vec::new();
+    // Body span alongside each unit, for dedup below -- a query can have
+    // patterns whose @func spans legitimately differ while @body is the
+    // same node (def+fn's @func is the whole `def` form, but its @body is
+    // just the inner `(fn ...)`, which the generic bare-fn pattern also
+    // matches on its own with @func == @body). Body span is what actually
+    // gets fingerprinted, so it's the right identity for "is this the same
+    // unit reported twice."
+    let mut functions: Vec<(FunctionUnit, u32, u32)> = Vec::new();
     let mut cursor = QueryCursor::new();
     let mut matches = cursor.matches(query, root, src.as_bytes());
     while let Some(m) = matches.next() {
@@ -202,20 +209,32 @@ pub fn analyze_source(
             }
             _ => false,
         };
-        functions.push(FunctionUnit {
-            file,
-            lang,
-            name,
-            start_line: func.start_position().row as u32 + 1,
-            end_line: func.end_position().row as u32 + 1,
-            start_byte: func.start_byte() as u32,
-            end_byte: func.end_byte() as u32,
-            sig_lines: normalized.sig_lines,
-            fingerprints,
-            is_test,
-            is_trait_impl_method,
-        });
+        functions.push((
+            FunctionUnit {
+                file,
+                lang,
+                name,
+                start_line: func.start_position().row as u32 + 1,
+                end_line: func.end_position().row as u32 + 1,
+                start_byte: func.start_byte() as u32,
+                end_byte: func.end_byte() as u32,
+                sig_lines: normalized.sig_lines,
+                fingerprints,
+                is_test,
+                is_trait_impl_method,
+            },
+            body.start_byte() as u32,
+            body.end_byte() as u32,
+        ));
     }
+
+    // Dedup on identical body span, preferring the named match over
+    // "<anonymous>" when both exist for the same node (see the comment on
+    // `functions` above). For every other language, where spans never
+    // overlap, this is a no-op stable sort into source order.
+    functions.sort_by_key(|(f, bs, be)| (*bs, *be, f.name == "<anonymous>"));
+    functions.dedup_by(|(_, bs1, be1), (_, bs2, be2)| bs1 == bs2 && be1 == be2);
+    let functions = functions.into_iter().map(|(f, ..)| f).collect();
 
     Some(FileAnalysis {
         functions,
@@ -524,10 +543,26 @@ function describeUser(user: { name: string; age: number }): string {
     fn clojure_renamed_clone_has_identical_fingerprints() {
         // Same shape, every local variable/parameter renamed, operators and
         // special forms (defn, let, reduce, fn, if, +, *, -) untouched — a
-        // textbook type-2 clone.
+        // textbook type-2 clone. 4 functions, not 2: each defn's nested
+        // (fn [acc item] ...) reducer is now its own <anonymous> unit too
+        // (bare/unbound fn literals are captured unconditionally), and
+        // those two should be an identical clone of each other as well.
         let fa = analyze_source(0, Lang::Clojure, CLOJURE_PAIR, 10, false).unwrap();
-        assert_eq!(fa.functions.len(), 2);
-        assert_eq!(fa.functions[0].fingerprints, fa.functions[1].fingerprints);
+        assert_eq!(fa.functions.len(), 4);
+        let named: Vec<_> = fa
+            .functions
+            .iter()
+            .filter(|f| f.name != "<anonymous>")
+            .collect();
+        let anon: Vec<_> = fa
+            .functions
+            .iter()
+            .filter(|f| f.name == "<anonymous>")
+            .collect();
+        assert_eq!(named.len(), 2);
+        assert_eq!(anon.len(), 2);
+        assert_eq!(named[0].fingerprints, named[1].fingerprints);
+        assert_eq!(anon[0].fingerprints, anon[1].fingerprints);
     }
 
     #[test]
@@ -536,7 +571,10 @@ function describeUser(user: { name: string; age: number }): string {
         // throughout (max/when/min/- instead of */if/+). Before TokenClass::Op
         // exists, every symbol collapses to the same code regardless of kind,
         // so this is expected to FAIL — it's the concrete proof the fix does
-        // what it claims once it lands.
+        // what it claims once it lands. 4 functions, not 2, for the same
+        // reason as the renamed-clone test above: each nested reducer fn is
+        // its own <anonymous> unit, and it differs in the same way its
+        // enclosing defn does.
         let src = r#"
 (defn sum-items [items factor]
   (let [total (reduce (fn [acc item]
@@ -559,12 +597,23 @@ function describeUser(user: { name: string; age: number }): string {
     (- total (/ total factor))))
 "#;
         let fa = analyze_source(0, Lang::Clojure, src, 10, false).unwrap();
-        assert_eq!(fa.functions.len(), 2);
-        let j = crate::fingerprint::jaccard(
-            &fa.functions[0].fingerprints,
-            &fa.functions[1].fingerprints,
-        );
-        assert!(j < 0.3, "unrelated functions scored {j}");
+        assert_eq!(fa.functions.len(), 4);
+        let named: Vec<_> = fa
+            .functions
+            .iter()
+            .filter(|f| f.name != "<anonymous>")
+            .collect();
+        let anon: Vec<_> = fa
+            .functions
+            .iter()
+            .filter(|f| f.name == "<anonymous>")
+            .collect();
+        assert_eq!(named.len(), 2);
+        assert_eq!(anon.len(), 2);
+        let j_named = crate::fingerprint::jaccard(&named[0].fingerprints, &named[1].fingerprints);
+        assert!(j_named < 0.3, "unrelated functions scored {j_named}");
+        let j_anon = crate::fingerprint::jaccard(&anon[0].fingerprints, &anon[1].fingerprints);
+        assert!(j_anon < 0.3, "unrelated nested reducers scored {j_anon}");
     }
 
     #[test]
@@ -643,6 +692,73 @@ function describeUser(user: { name: string; age: number }): string {
     }
 
     #[test]
+    fn clojure_def_bound_reader_macro_fn_is_captured() {
+        // (def name #(...)) -- the reader-macro shorthand for def+fn. #(...)
+        // is a different grammar node (anon_fn_lit) from (fn ...), so it
+        // needs its own pattern; this proves that pattern works and that
+        // dedup still keeps exactly one, named, unit -- not two. Body has to
+        // clear KGRAM=10 leaf tokens or winnow() produces no fingerprints
+        // and the unit is dropped regardless of min_tokens -- a plain
+        // `#(+ % 1)` is too short to prove anything here.
+        let src = r#"
+(def compute #(+ (* % 2) (- % 1) 3))
+"#;
+        let fa = analyze_source(0, Lang::Clojure, src, 1, false).unwrap();
+        assert_eq!(fa.functions.len(), 1);
+        assert_eq!(fa.functions[0].name, "compute");
+    }
+
+    #[test]
+    fn clojure_letfn_bindings_are_captured() {
+        // letfn's bindings are a third shape: list_lit entries nested inside
+        // the binding vector, not direct children of the letfn form or
+        // headed by any keyword of their own.
+        let src = r#"
+(defn caller [xs]
+  (letfn [(helper [x] (+ x 1))
+          (other [y] (* y 2))]
+    (map helper xs)))
+"#;
+        let fa = analyze_source(0, Lang::Clojure, src, 1, false).unwrap();
+        let names: Vec<&str> = fa.functions.iter().map(|f| f.name.as_str()).collect();
+        assert!(names.contains(&"caller"));
+        assert!(names.contains(&"helper"));
+        assert!(names.contains(&"other"));
+    }
+
+    #[test]
+    fn clojure_letfn_renamed_clone_has_identical_fingerprints() {
+        let src = r#"
+(letfn [(helper [x] (+ x 1))]
+  (helper 1))
+
+(letfn [(increment [y] (+ y 1))]
+  (increment 1))
+"#;
+        let fa = analyze_source(0, Lang::Clojure, src, 1, false).unwrap();
+        let helper = fa.functions.iter().find(|f| f.name == "helper").unwrap();
+        let increment = fa.functions.iter().find(|f| f.name == "increment").unwrap();
+        assert_eq!(helper.fingerprints, increment.fingerprints);
+    }
+
+    #[test]
+    fn clojure_bare_lambda_passed_as_callback_is_captured_as_anonymous() {
+        // A (fn ...) or #(...) never bound to any name anywhere -- the most
+        // common shape in idiomatic Clojure (map/filter/reduce callbacks) --
+        // is still captured, reported as "<anonymous>" (the same fallback
+        // every other language already uses for unnamed functions).
+        let src = r#"
+(defn caller [xs]
+  (map (fn [x] (+ x 1)) xs))
+"#;
+        let fa = analyze_source(0, Lang::Clojure, src, 1, false).unwrap();
+        let names: Vec<&str> = fa.functions.iter().map(|f| f.name.as_str()).collect();
+        assert!(names.contains(&"caller"));
+        assert!(names.contains(&"<anonymous>"));
+        assert_eq!(fa.functions.len(), 2);
+    }
+
+    #[test]
     fn clojure_defmulti_and_defmethod_are_captured() {
         let src = r#"
 (defmulti area (fn [shape] (:type shape)))
@@ -654,8 +770,12 @@ function describeUser(user: { name: string; age: number }): string {
   (* (:side shape) (:side shape)))
 "#;
         let fa = analyze_source(0, Lang::Clojure, src, 1, false).unwrap();
+        // defmulti's own dispatch fn -- (fn [shape] (:type shape)) -- is now
+        // also its own <anonymous> unit, on top of the 3 "area" entries.
         let names: Vec<&str> = fa.functions.iter().map(|f| f.name.as_str()).collect();
-        assert_eq!(names, vec!["area", "area", "area"]);
+        assert_eq!(names.iter().filter(|&&n| n == "area").count(), 3);
+        assert_eq!(names.iter().filter(|&&n| n == "<anonymous>").count(), 1);
+        assert_eq!(fa.functions.len(), 4);
     }
 
     #[test]

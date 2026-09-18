@@ -25,6 +25,48 @@
     (#eq? @_fnkw "fn")) @body
   (#eq? @_kw "def")) @func
 
+; (def name #(...)) -- the reader-macro shorthand for the same idiom. #(...)
+; parses as its own node kind (anon_fn_lit), not a list_lit headed by "fn",
+; so it needs its own pattern rather than an alternation on the one above.
+(list_lit
+  .
+  (sym_lit name: (sym_name) @_kw)
+  .
+  (sym_lit name: (sym_name) @name)
+  .
+  (anon_fn_lit) @body
+  (#eq? @_kw "def")) @func
+
+; letfn's bindings are a third shape again: each is a list_lit shaped like
+; (name [args] body...), same as defn/protocol methods, but nested inside
+; the binding vec_lit rather than being a direct child of the letfn form
+; itself or headed by any keyword of its own.
+(list_lit
+  .
+  (sym_lit name: (sym_name) @_kw)
+  .
+  (#eq? @_kw "letfn")
+  (vec_lit
+    (list_lit
+      .
+      (sym_lit name: (sym_name) @name)
+      .
+      (vec_lit)) @func @body))
+
+; Anonymous/unbound fn and #(...) literals -- passed directly as a callback
+; argument (map, filter, reduce, ...), never bound to a name anywhere. No
+; @name capture; extract.rs already falls back to "<anonymous>" for that.
+; This necessarily overlaps the def+fn and def+#(...) patterns above (the
+; SAME node matches both when it's def-bound), which analyze_source resolves
+; by deduping on identical span and preferring the named match.
+(anon_fn_lit) @func @body
+
+(list_lit
+  .
+  (sym_lit name: (sym_name) @_fnkw)
+  .
+  (#eq? @_fnkw "fn")) @func @body
+
 ; Protocol method implementations inside defrecord/deftype/extend-type/
 ; extend-protocol/reify. No keyword of their own -- the method's own name
 ; is the list's head -- so the only way to distinguish one from an

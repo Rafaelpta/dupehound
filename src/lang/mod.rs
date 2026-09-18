@@ -185,13 +185,17 @@ pub enum TokenClass {
 /// can't separate "operator" from "identifier" the way every other
 /// supported grammar's node kinds do. `is_clojure_call_head` breaks the tie
 /// using the leaf's position instead — hence this function takes the whole
-/// `Node`, not just its kind string.
-pub fn classify(leaf: Node) -> TokenClass {
+/// `Node`, not just its kind string. `root` is the top of the subtree being
+/// normalized (see `is_clojure_call_head`'s doc comment for why it matters).
+pub fn classify(leaf: Node, root: Node) -> TokenClass {
     let kind = leaf.kind();
     if kind.contains("comment") {
         TokenClass::Comment
     } else if kind == "sym_name" {
-        if leaf.parent().is_some_and(is_clojure_call_head) {
+        if leaf
+            .parent()
+            .is_some_and(|sym_lit| is_clojure_call_head(sym_lit, root))
+        {
             TokenClass::Op
         } else {
             TokenClass::Ident
@@ -225,21 +229,38 @@ pub fn classify(leaf: Node) -> TokenClass {
 }
 
 /// True if `sym_lit` occupies the head (first) position of a Clojure list
-/// form — `(reduce ...)`, `(if ...)`, `(+ ...)` — meaning the symbol names
-/// the operator/special-form/macro being invoked rather than referencing a
-/// bound value. Deliberately Clojure-grammar-specific (it names
-/// `list_lit`/`value` directly): a second Lisp dialect should get its own
-/// version of this function against its own grammar's node shape, not a
+/// or `#(...)` form — `(reduce ...)`, `(if ...)`, `(+ ...)`, `#(+ % 1)` —
+/// meaning the symbol names the operator/special-form/macro being invoked
+/// rather than referencing a bound value.
+///
+/// One exception: when the enclosing list *is* `root` (the top of the
+/// subtree being normalized) and that list is a `list_lit`, its head is a
+/// declared name or defining keyword, never an invoked operator —
+/// `(defn sum-items ...)`, `(run-cmd [this] ...)`, `(helper [x] ...)` all
+/// put a name or keyword at that exact position, not a call. `#(...)`
+/// bodies don't get this exception: `anon_fn_lit` has no separate name/
+/// keyword of its own (no explicit parameter vector either — `%`/`%1`
+/// placeholders stand in for it), so its own top-level symbol genuinely is
+/// the operator being invoked, e.g. `+` in `#(+ % 1)`.
+///
+/// Deliberately Clojure-grammar-specific (it names `list_lit`/`anon_fn_lit`/
+/// `value` directly): a second Lisp dialect should get its own version of
+/// this function against its own grammar's node shape, not a
 /// generalization of this one.
-fn is_clojure_call_head(sym_lit: Node) -> bool {
+fn is_clojure_call_head(sym_lit: Node, root: Node) -> bool {
     let Some(list) = sym_lit.parent() else {
         return false;
     };
-    if list.kind() != "list_lit" {
+    if !matches!(list.kind(), "list_lit" | "anon_fn_lit") {
         return false;
     }
-    list.child_by_field_name("value")
+    if !list
+        .child_by_field_name("value")
         .is_some_and(|first| first.id() == sym_lit.id())
+    {
+        return false;
+    }
+    !(list.id() == root.id() && list.kind() == "list_lit")
 }
 
 #[cfg(test)]
