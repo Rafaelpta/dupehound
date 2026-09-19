@@ -1,6 +1,7 @@
 //! Groups matching pairs into duplicate clusters with union-find, picks a
-//! representative per cluster, and suppresses nested clusters (an inner
-//! closure duplicated because its whole enclosing function is duplicated).
+//! representative per cluster, and suppresses nested matches: a function
+//! paired with its own inner function, and an inner closure duplicated only
+//! because its whole enclosing function is duplicated.
 
 use crate::extract::FunctionUnit;
 use crate::index::{Pair, similarity};
@@ -76,7 +77,11 @@ pub fn build_clusters(functions: &[FunctionUnit], pairs: &[Pair]) -> Vec<Cluster
 
     let mut clusters: Vec<Cluster> = groups
         .into_values()
-        .map(|mut ids| {
+        .filter_map(|mut ids| {
+            drop_nested_members(functions, &mut ids);
+            if ids.len() < 2 {
+                return None;
+            }
             // Representative = the member with the most significant lines;
             // the "original" is exempt from the deletable count.
             ids.sort_by_key(|&id| {
@@ -103,12 +108,12 @@ pub fn build_clusters(functions: &[FunctionUnit], pairs: &[Pair]) -> Vec<Cluster
             let trait_impl_only = ids
                 .iter()
                 .all(|&id| functions[id as usize].is_trait_impl_method);
-            Cluster {
+            Some(Cluster {
                 members,
                 deletable_lines,
                 test_only,
                 trait_impl_only,
-            }
+            })
         })
         .collect();
 
@@ -117,16 +122,32 @@ pub fn build_clusters(functions: &[FunctionUnit], pairs: &[Pair]) -> Vec<Cluster
     clusters
 }
 
+/// True when `inner` sits strictly inside `outer` in the same file.
+fn contains(outer: &FunctionUnit, inner: &FunctionUnit) -> bool {
+    outer.file == inner.file
+        && outer.start_byte <= inner.start_byte
+        && inner.end_byte <= outer.end_byte
+        && (outer.start_byte, outer.end_byte) != (inner.start_byte, inner.end_byte)
+}
+
+/// Drop a member that sits inside another member of the same cluster. A
+/// function whose body is mostly one inner function (a Python factory, a
+/// Clojure `defn` returning an `fn`) matches that inner function, but the
+/// two are one piece of code, not a duplicate to delete.
+fn drop_nested_members(functions: &[FunctionUnit], ids: &mut Vec<u32>) {
+    let snapshot = ids.clone();
+    ids.retain(|&id| {
+        let inner = &functions[id as usize];
+        !snapshot
+            .iter()
+            .any(|&o| o != id && contains(&functions[o as usize], inner))
+    });
+}
+
 /// Drop a cluster when each of its members sits inside a member of one other
 /// cluster — that's an inner function matching only because its enclosing
 /// function is itself duplicated, and counting both double-counts the lines.
 fn suppress_nested(functions: &[FunctionUnit], clusters: &mut Vec<Cluster>) {
-    let contains = |outer: &FunctionUnit, inner: &FunctionUnit| {
-        outer.file == inner.file
-            && outer.start_byte <= inner.start_byte
-            && inner.end_byte <= outer.end_byte
-            && (outer.start_byte, outer.end_byte) != (inner.start_byte, inner.end_byte)
-    };
     let snapshot: Vec<Vec<u32>> = clusters
         .iter()
         .map(|c| c.members.iter().map(|m| m.func).collect())
@@ -216,5 +237,35 @@ mod tests {
         assert_eq!(clusters.len(), 1);
         assert_eq!(clusters[0].members.len(), 2);
         assert_eq!(clusters[0].deletable_lines, 28);
+    }
+
+    #[test]
+    fn function_is_not_a_duplicate_of_its_own_inner_function() {
+        // 0 is a factory whose body is mostly the inner function 1; they
+        // fingerprint alike but are one piece of code.
+        let functions = vec![
+            unit(0, (1, 12), (0, 300), 10, vec![1, 2, 3, 4]),
+            unit(0, (3, 10), (50, 250), 7, vec![1, 2, 3]),
+        ];
+        let pairs = vec![Pair { a: 0, b: 1 }];
+        let clusters = build_clusters(&functions, &pairs);
+        assert!(clusters.is_empty());
+    }
+
+    #[test]
+    fn inner_function_is_dropped_but_real_duplicate_stays() {
+        // 0 contains 1; 2 in another file is a real copy of 0. The cluster
+        // keeps 0 and 2 and drops the inner 1.
+        let functions = vec![
+            unit(0, (1, 12), (0, 300), 10, vec![1, 2, 3, 4]),
+            unit(0, (3, 10), (50, 250), 7, vec![1, 2, 3]),
+            unit(1, (1, 12), (0, 300), 10, vec![1, 2, 3, 4]),
+        ];
+        let pairs = vec![Pair { a: 0, b: 1 }, Pair { a: 1, b: 2 }];
+        let clusters = build_clusters(&functions, &pairs);
+        assert_eq!(clusters.len(), 1);
+        let members: Vec<u32> = clusters[0].members.iter().map(|m| m.func).collect();
+        assert_eq!(members, vec![0, 2]);
+        assert_eq!(clusters[0].deletable_lines, 10);
     }
 }
