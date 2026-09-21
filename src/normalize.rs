@@ -49,7 +49,7 @@ pub fn normalize(node: Node, src: &[u8]) -> Normalized {
     let mut last_line = u32::MAX;
 
     visit_leaves(node, &mut |leaf| {
-        let class = classify(leaf);
+        let class = classify(leaf, node);
         if class == TokenClass::Comment {
             return;
         }
@@ -82,7 +82,7 @@ pub fn significant_lines(node: Node) -> u32 {
     let mut count = 0u32;
     let mut last_line = u32::MAX;
     visit_leaves(node, &mut |leaf| {
-        if classify(leaf) == TokenClass::Comment {
+        if classify(leaf, node) == TokenClass::Comment {
             return;
         }
         let row = leaf.start_position().row as u32;
